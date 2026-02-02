@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strava Viewer - Mes Activités 2026</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+            padding: 10px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 44px;
+        }
+
+        .header-left {
+            position: absolute;
+            left: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-right {
+            position: absolute;
+            right: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .month-nav {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .month-nav-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .month-nav-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.05);
+        }
+
+        .month-title {
+            font-size: 20px;
+            font-weight: 600;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .back-to-month-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-to-month-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        .add-annotation-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .add-annotation-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* VUE MOIS */
+        #monthView {
+            padding: 10px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .month-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+            flex: 1;
+        }
+
+        .calendar-day-header {
+            background: #e3f2fd;
+            padding: 6px;
+            text-align: center;
+            font-weight: 600;
+            color: #1976d2;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .calendar-day {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 120px;
+        }
+
+        .calendar-day:hover {
+            border-color: #1e88e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.4;
+        }
+
+        .calendar-day.today {
+            border-color: #ff9800;
+            border-width: 3px;
+            background: #fff3e0;
+        }
+
+        .day-number {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .day-activities {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .day-activity {
+            font-size: 10px;
+            padding: 2px 4px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .day-activity.run {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .day-activity.ride {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .day-annotations {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-top: auto;
+            overflow: hidden;
+        }
+
+        .day-annotation {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .day-annotation.week {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .day-annotation.day {
+            background: #e1f5fe;
+            color: #0277bd;
+        }
+
+        .day-annotation.time {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        /* VUE SEMAINE */
+        #weekView {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .stat-unit {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-left: 4px;
+        }
+
+        .week-view-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        #week-view {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .day-container {
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .day-header {
+            background: #fafafa;
+            padding: 12px 20px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .day-header:hover {
+            background: #f0f0f0;
+        }
+
+        .day-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .day-name {
+            min-width: 100px;
+        }
+
+        .day-date {
+            color: #666;
+            font-weight: normal;
+            font-size: 12px;
+        }
+
+        .day-activities-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .day-content {
+            padding: 0;
+        }
+
+        .activity-item {
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: white;
+        }
+
+        .activity-item:hover {
+            background: #f5f5f5;
+        }
+
+        .activity-item.active {
+            background: #e3f2fd;
+            border-left-color: #1e88e5;
+        }
+
+        .activity-icon {
+            font-size: 32px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .activity-details {
+            flex: 1;
+        }
+
+        .activity-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .activity-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .activity-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .activity-time {
+            color: #999;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .chart-container {
+            height: 200px;
+            flex-shrink: 0;
+            background: white;
+            padding: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .no-data {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 16px;
+        }
+
+        /* Week annotations */
+        .week-annotations-container {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 20px;
+        }
+
+        .week-annotation-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .week-annotation-item.week {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            border-left: 4px solid #9c27b0;
+        }
+
+        .week-annotation-item.day {
+            background: #e1f5fe;
+            color: #0277bd;
+            border-left: 4px solid #03a9f4;
+        }
+
+        .week-annotation-item.time {
+            background: #fff3e0;
+            color: #e65100;
+            border-left: 4px solid #ff9800;
+        }
+
+        /* Modal d'annotation */
+        .annotation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .annotation-modal.show {
+            display: flex;
+        }
+
+        .annotation-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #1e88e5;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .modal-btn-submit {
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+        }
+
+        .modal-btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.4);
+        }
+
+        /* Clear cache button */
+        .clear-cache-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .clear-cache-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+    </style>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-row">
+            <div class="header-left">
+                <!-- Mois : bouton cache / Semaine : bouton retour -->
+                <button id="btnCacheMonth" class="clear-cache-btn" onclick="clearCache()" title="Vider le cache GPS">🗑️ Cache</button>
+                <button id="btnBackToMonth" class="back-to-month-btn" style="display: none;" onclick="showMonthView()">← Retour au mois</button>
+            </div>
+
+            <!-- Mois : navigation -->
+            <div id="monthViewHeader" class="month-nav">
+                <button class="month-nav-btn" onclick="previousMonth()">← Mois précédent</button>
+                <div class="month-title" id="monthTitle">Février 2026</div>
+                <button class="month-nav-btn" onclick="nextMonth()">Mois suivant →</button>
+            </div>
+
+            <!-- Semaine : titre -->
+            <div id="weekViewHeader" style="display: none; font-size: 18px; font-weight: 600;" class="header-week-title">Semaine en cours</div>
+
+            <div class="header-right">
+                <button class="add-annotation-btn" onclick="openAnnotationModal()" title="Ajouter une annotation">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VUE MOIS -->
+    <div id="monthView">
+        <div class="month-calendar" id="monthCalendar">
+            <!-- Généré dynamiquement par JavaScript -->
+        </div>
+    </div>
+
+    <!-- VUE SEMAINE -->
+    <div id="weekView">
+        <div class="container">
+            <div class="left-panel">
+                <div class="week-view-container">
+                    <div id="week-view">
+                        <div class="no-data">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="elevationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'annotation -->
+    <div id="annotationModal" class="annotation-modal">
+        <div class="annotation-modal-content">
+            <div class="modal-header">📝 Ajouter une annotation</div>
+            
+            <div class="form-group">
+                <label for="annotationType" class="form-label">Type d'annotation</label>
+                <select id="annotationType" class="form-select" onchange="updateDateOptions()">
+                    <option value="week">Semaine</option>
+                    <option value="day">Jour</option>
+                    <option value="time">Plage horaire</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="dateGroup">
+                <label for="annotationDate" class="form-label">Date</label>
+                <input type="date" id="annotationDate" class="form-select" />
+            </div>
+
+            <div class="form-group" id="timeGroup" style="display: none;">
+                <label for="annotationTime" class="form-label">Heure</label>
+                <input type="time" id="annotationTime" class="form-select" />
+            </div>
+
+            <div class="form-group">
+                <label for="annotationText" class="form-label">Texte de l'annotation</label>
+                <textarea id="annotationText" class="form-textarea" placeholder="Votre annotation..."></textarea>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" onclick="closeAnnotationModal()">Annuler</button>
+                <button class="modal-btn modal-btn-submit" onclick="saveAnnotation()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        console.log('=== DEBUT DU SCRIPT ===');
+        
+        // Variables Supabase
+        window.SUPABASE_CONFIG = {
+            url: '{{ supabase_url }}',
+            key: '{{ supabase_key }}'
+        };
+        
+        // Créer le client Supabase
+        if (!window.supabaseClient) {
+            const { createClient } = supabase;
+            window.supabaseClient = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+            console.log('✓ Supabase client créé');
+        }
+
+        // Variables globales
+        let activities = [];
+        let annotations = [];
+        let map = null;
+        let chart = null;
+        let currentActivityId = null;
+        let currentPolyline = null;
+        let currentMarkers = [];
+        let hoverMarker = null;
+        let currentStreams = [];
+        let streamsCache = new Map();
+        let currentView = 'month'; // 'month' ou 'week'
+        let currentMonth = new Date(2026, 1, 1); // Février 2026
+        let selectedWeekStart = null;
+
+        // === GESTION DU CACHE ===
+        function clearCache() {
+            if (confirm('Voulez-vous vider le cache GPS ? Les traces seront rechargées depuis le serveur.')) {
+                localStorage.clear();
+                streamsCache.clear();
+                console.log('✓ Cache vidé');
+                alert('Cache vidé ! Rechargez la page pour voir les changements.');
+            }
+        }
+
+        function saveCacheToStorage() {
+            try {
+                const cacheObj = {};
+                streamsCache.forEach((value, key) => {
+                    cacheObj[key] = value;
+                });
+                localStorage.setItem('streamsCache', JSON.stringify(cacheObj));
+                console.log(`✓ Cache sauvegardé (${streamsCache.size} activités)`);
+            } catch (e) {
+                console.warn('⚠ Impossible de sauvegarder le cache:', e);
+            }
+        }
+
+        function loadCacheFromStorage() {
+            try {
+                const cached = localStorage.getItem('streamsCache');
+                if (cached) {
+                    const cacheObj = JSON.parse(cached);
+                    Object.keys(cacheObj).forEach(key => {
+                        streamsCache.set(parseInt(key), cacheObj[key]);
+                    });
+                    console.log(`✓ Cache chargé (${streamsCache.size} activités)`);
+                }
+            } catch (e) {
+                console.warn('⚠ Impossible de charger le cache:', e);
+            }
+        }
+
+        // === NAVIGATION VUE MOIS / SEMAINE ===
+        function showMonthView() {
+            currentView = 'month';
+            document.getElementById('monthView').style.display = 'block';
+            document.getElementById('weekView').style.display = 'none';
+            document.getElementById('monthViewHeader').style.display = 'flex';
+            document.getElementById('weekViewHeader').style.display = 'none';
+            document.getElementById('btnCacheMonth').style.display = 'block';
+            document.getElementById('btnBackToMonth').style.display = 'none';
+            loadMonthView();
+        }
+
+        function showWeekView(weekStartDate) {
+            currentView = 'week';
+            selectedWeekStart = weekStartDate;
+            document.getElementById('monthView').style.display = 'none';
+            document.getElementById('weekView').style.display = 'flex';
+            document.getElementById('monthViewHeader').style.display = 'none';
+            document.getElementById('weekViewHeader').style.display = 'block';
+            document.getElementById('btnCacheMonth').style.display = 'none';
+            document.getElementById('btnBackToMonth').style.display = 'block';
+            
+            // Initialiser la carte si nécessaire
+            if (!map) {
+                initMap();
+            }
+            
+            loadWeekView(weekStartDate);
+        }
+
+        // === NAVIGATION MOIS ===
+        function previousMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            loadMonthView();
+        }
+
+        function nextMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            loadMonthView();
+        }
+
+        function updateMonthTitle() {
+            const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                              'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            const title = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+            document.getElementById('monthTitle').textContent = title;
+        }
+
+        // === CHARGEMENT VUE MOIS ===
+        function loadMonthView() {
+            updateMonthTitle();
+            
+            const calendar = document.getElementById('monthCalendar');
+            calendar.innerHTML = '';
+
+            // Headers des jours
+            const dayHeaders = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                calendar.appendChild(header);
+            });
+
+            // Calculer premier et dernier jour du mois
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+            
+            // Ajuster pour commencer un lundi
+            const startDay = new Date(firstDay);
+            const dayOfWeek = firstDay.getDay();
+            const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            startDay.setDate(startDay.getDate() - daysToSubtract);
+
+            // Calculer le nombre de cellules nécessaires (35 ou 42)
+            const totalDays = Math.ceil((lastDay.getDate() + daysToSubtract) / 7) * 7;
+            const weekRows = totalDays / 7;
+            // 1re ligne auto (headers), puis N lignes égales qui remplissent l'espace
+            calendar.style.gridTemplateRows = `auto ${Array(weekRows).fill('1fr').join(' ')}`;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < totalDays; i++) {
+                const currentDate = new Date(startDay);
+                currentDate.setDate(currentDate.getDate() + i);
+                
+                const dayElement = createDayElement(currentDate, currentMonth, today);
+                calendar.appendChild(dayElement);
+            }
+        }
+
+        function createDayElement(date, monthDate, today) {
+            const div = document.createElement('div');
+            div.className = 'calendar-day';
+            
+            // Vérifier si le jour appartient au mois courant
+            const isCurrentMonth = date.getMonth() === monthDate.getMonth();
+            if (!isCurrentMonth) {
+                div.classList.add('other-month');
+            }
+
+            // Vérifier si c'est aujourd'hui
+            if (date.getTime() === today.getTime()) {
+                div.classList.add('today');
+            }
+
+            // Numéro du jour
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = date.getDate();
+            div.appendChild(dayNumber);
+
+            // Activités du jour
+            const activitiesDiv = document.createElement('div');
+            activitiesDiv.className = 'day-activities';
+            
+            const dayActivities = getActivitiesForDate(date);
+            dayActivities.forEach(activity => {
+                const activityEl = document.createElement('div');
+                activityEl.className = `day-activity ${activity.sport_type === 'Run' ? 'run' : 'ride'}`;
+
+                const icon = activity.sport_type === 'Run' ? '🏃' : '🚴';
+                const time = formatDuration(activity.moving_time);
+                const distance = (activity.distance / 1000).toFixed(1);
+                
+                activityEl.textContent = `${icon} ${time} ${distance}km`;
+                activitiesDiv.appendChild(activityEl);
+            });
+            div.appendChild(activitiesDiv);
+
+            // Annotations du jour
+            const annotationsDiv = document.createElement('div');
+            annotationsDiv.className = 'day-annotations';
+            
+            const dayAnnotations = getAnnotationsForDate(date);
+            dayAnnotations.forEach(annotation => {
+                const annotEl = document.createElement('div');
+                annotEl.className = `day-annotation ${annotation.event_type}`;
+                annotEl.textContent = annotation.title.substring(0, 30) + (annotation.title.length > 30 ? '...' : '');
+                annotationsDiv.appendChild(annotEl);
+            });
+            div.appendChild(annotationsDiv);
+
+            // Click handler : aller vers la vue semaine (tous les jours, y compris hors mois)
+            div.onclick = () => {
+                const weekStart = getWeekStart(date);
+                showWeekView(weekStart);
+            };
+
+            return div;
+        }
+
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Lundi
+            return new Date(d.setDate(diff));
+        }
+
+        function getActivitiesForDate(date) {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return activities.filter(a => a.start_date_local.startsWith(dateStr));
+        }
+
+        function getAnnotationsForDate(date) {
+            const result = [];
+
+            annotations.forEach(ann => {
+                if (ann.event_type === 'week') {
+                    const weekStart = new Date(ann.start_datetime);
+                    const weekEnd = ann.end_datetime ? new Date(ann.end_datetime) : new Date(weekStart);
+                    if (!ann.end_datetime) weekEnd.setDate(weekEnd.getDate() + 6);
+                    weekStart.setHours(0, 0, 0, 0);
+                    weekEnd.setHours(23, 59, 59, 999);
+                    if (date >= weekStart && date <= weekEnd) {
+                        result.push(ann);
+                    }
+                } else if (ann.event_type === 'day' || ann.event_type === 'time') {
+                    const annDate = new Date(ann.start_datetime);
+                    if (date.toDateString() === annDate.toDateString()) {
+                        result.push(ann);
+                    }
+                }
+            });
+
+            return result;
+        }
+
+        // === CHARGEMENT VUE SEMAINE ===
+        function loadWeekView(weekStartDate = null) {
+            console.log('=== CHARGEMENT DE LA VUE SEMAINE ===');
+            
+            if (!weekStartDate) {
+                const today = new Date();
+                weekStartDate = getWeekStart(today);
+            }
+
+            const weekStart = new Date(weekStartDate);
+            weekStart.setHours(0, 0, 0, 0);
+            
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+
+            console.log('Semaine du', weekStart.toLocaleDateString(), 'au', weekEnd.toLocaleDateString());
+
+            // Mettre à jour le titre
+            const weekTitle = `Semaine du ${weekStart.getDate()} ${['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][weekStart.getMonth()]} au ${weekEnd.getDate()} ${['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][weekEnd.getMonth()]} ${weekEnd.getFullYear()}`;
+            document.getElementById('weekViewHeader').textContent = weekTitle;
+
+            // Filtrer les activités de la semaine
+            const weekActivities = activities.filter(activity => {
+                const activityDate = new Date(activity.start_date_local);
+                return activityDate >= weekStart && activityDate <= weekEnd;
+            });
+
+            console.log(`${weekActivities.length} activités trouvées pour cette semaine`);
+
+            // Afficher les jours de la semaine avec leurs activités
+            displayWeekDays(weekStart, weekActivities);
+
+            // Les annotations sont maintenant affichées inline dans displayWeekDays
+
+            // Précharger les GPS des premières activités
+            if (weekActivities.length > 0) {
+                preloadStreams(weekActivities.slice(0, 2));
+            }
+        }
+
+        function displayWeekDays(weekStart, weekActivities) {
+            const weekView = document.getElementById('week-view');
+            weekView.innerHTML = '';
+
+            const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+            for (let i = 0; i < 7; i++) {
+                const currentDate = new Date(weekStart);
+                currentDate.setDate(currentDate.getDate() + i);
+
+                const dayActivities = weekActivities.filter(activity => {
+                    const activityDate = new Date(activity.start_date_local);
+                    return activityDate.toDateString() === currentDate.toDateString();
+                });
+
+                const dayContainer = document.createElement('div');
+                dayContainer.className = 'day-container';
+
+                // En-tête du jour
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                
+                const dayHeaderLeft = document.createElement('div');
+                dayHeaderLeft.className = 'day-header-left';
+
+                const dayName = document.createElement('div');
+                dayName.className = 'day-name';
+                dayName.textContent = dayNames[i];
+
+                const dayDate = document.createElement('div');
+                dayDate.className = 'day-date';
+                dayDate.textContent = currentDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+
+                dayHeaderLeft.appendChild(dayName);
+                dayHeaderLeft.appendChild(dayDate);
+
+                if (dayActivities.length > 0) {
+                    const count = document.createElement('div');
+                    count.className = 'day-activities-count';
+                    count.textContent = `${dayActivities.length} activité${dayActivities.length > 1 ? 's' : ''}`;
+                    dayHeader.appendChild(dayHeaderLeft);
+                    dayHeader.appendChild(count);
+                } else {
+                    dayHeader.appendChild(dayHeaderLeft);
+                }
+
+                dayContainer.appendChild(dayHeader);
+
+                // Contenu du jour (annotations + activités)
+                const dayAnnotations = getAnnotationsForDate(currentDate);
+
+                if (dayActivities.length > 0 || dayAnnotations.length > 0) {
+                    const dayContent = document.createElement('div');
+                    dayContent.className = 'day-content';
+
+                    // Annotations du jour
+                    dayAnnotations.forEach(ann => {
+                        const item = document.createElement('div');
+                        item.className = `week-annotation-item ${ann.event_type}`;
+
+                        let prefix = '';
+                        if (ann.event_type === 'week') prefix = '📅 Semaine: ';
+                        else if (ann.event_type === 'day') prefix = '📆 ';
+                        else if (ann.event_type === 'time') {
+                            const annTime = new Date(ann.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                            prefix = `🕐 ${annTime}: `;
+                        }
+
+                        item.textContent = prefix + ann.title;
+                        dayContent.appendChild(item);
+                    });
+
+                    // Activités du jour
+                    dayActivities.forEach(activity => {
+                        const activityItem = createActivityItem(activity);
+                        dayContent.appendChild(activityItem);
+                    });
+
+                    dayContainer.appendChild(dayContent);
+                }
+
+                weekView.appendChild(dayContainer);
+            }
+        }
+
+        function createActivityItem(activity) {
+            const div = document.createElement('div');
+            div.className = 'activity-item';
+            div.onclick = (e) => selectActivity(activity.strava_id, e);
+
+            // Icône selon le type
+            const icon = document.createElement('div');
+            icon.className = 'activity-icon';
+            icon.textContent = activity.sport_type === 'Run' ? '🏃' : '🚴';
+
+            // Détails
+            const details = document.createElement('div');
+            details.className = 'activity-details';
+
+            const name = document.createElement('div');
+            name.className = 'activity-name';
+            name.textContent = activity.name;
+
+            const stats = document.createElement('div');
+            stats.className = 'activity-stats';
+
+            const distance = document.createElement('div');
+            distance.className = 'activity-stat';
+            distance.innerHTML = `<span>📏</span> ${(activity.distance / 1000).toFixed(2)} km`;
+
+            const elevation = document.createElement('div');
+            elevation.className = 'activity-stat';
+            elevation.innerHTML = `<span>⛰️</span> ${Math.round(activity.total_elevation_gain)} m`;
+
+            const duration = document.createElement('div');
+            duration.className = 'activity-stat';
+            duration.innerHTML = `<span>⏱️</span> ${formatDuration(activity.moving_time)}`;
+
+            stats.appendChild(distance);
+            stats.appendChild(elevation);
+            stats.appendChild(duration);
+
+            details.appendChild(name);
+            details.appendChild(stats);
+
+            // Heure
+            const time = document.createElement('div');
+            time.className = 'activity-time';
+            const activityTime = new Date(activity.start_date_local);
+            time.textContent = activityTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+            div.appendChild(icon);
+            div.appendChild(details);
+            div.appendChild(time);
+
+            return div;
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+                return `${hours}h${minutes.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}min`;
+        }
+
+        // === SÉLECTION D'UNE ACTIVITÉ ===
+        async function selectActivity(stravaId, e) {
+            console.log(`Sélection de l'activité ${stravaId}`);
+
+            // Mettre en surbrillance
+            document.querySelectorAll('.activity-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            e.currentTarget.classList.add('active');
+
+            currentActivityId = stravaId;
+
+            // Charger les données GPS
+            await loadActivityStreams(stravaId);
+
+            // Précharger les 2 prochaines
+            const currentIndex = activities.findIndex(a => a.strava_id === stravaId);
+            if (currentIndex !== -1) {
+                const nextActivities = activities.slice(currentIndex + 1, currentIndex + 3);
+                preloadStreams(nextActivities);
+            }
+        }
+
+        async function loadActivityStreams(stravaId) {
+            console.log(`Chargement des streams pour l'activité ${stravaId}`);
+
+            // Vérifier le cache
+            if (streamsCache.has(stravaId)) {
+                console.log('✓ Données en cache');
+                displayStreams(stravaId, streamsCache.get(stravaId));
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/activity/${stravaId}/streams`);
+                const streams = await response.json();
+                
+                console.log(`✓ ${streams.length} points GPS chargés`);
+
+                // Mettre en cache
+                streamsCache.set(stravaId, streams);
+                saveCacheToStorage();
+
+                displayStreams(stravaId, streams);
+            } catch (error) {
+                console.error('Erreur lors du chargement des streams:', error);
+            }
+        }
+
+        async function preloadStreams(activities) {
+            for (const activity of activities) {
+                if (!streamsCache.has(activity.strava_id)) {
+                    try {
+                        const response = await fetch(`/api/activity/${activity.strava_id}/streams`);
+                        const streams = await response.json();
+                        streamsCache.set(activity.strava_id, streams);
+                        console.log(`✓ Préchargé: ${activity.strava_id}`);
+                    } catch (error) {
+                        console.warn(`Erreur préchargement ${activity.strava_id}:`, error);
+                    }
+                }
+            }
+            saveCacheToStorage();
+        }
+
+        function displayStreams(stravaId, streams) {
+            if (streams.length === 0) {
+                console.warn('Aucune donnée GPS');
+                return;
+            }
+
+            currentStreams = streams;
+
+            // Afficher sur la carte
+            displayOnMap(streams);
+
+            // Afficher le graphique d'altitude
+            displayElevationChart(streams);
+        }
+
+        function displayOnMap(streams) {
+            // Effacer l'ancienne trace et les marqueurs
+            if (currentPolyline) {
+                map.removeLayer(currentPolyline);
+            }
+            currentMarkers.forEach(m => map.removeLayer(m));
+            currentMarkers = [];
+            hideHoverMarker();
+
+            // Créer les coordonnées
+            const coordinates = streams.map(s => [s.latitude, s.longitude]);
+
+            // Lisser les coordonnées
+            const smoothed = smoothCoordinates(coordinates);
+
+            // Créer la polyline
+            currentPolyline = L.polyline(smoothed, {
+                color: '#fc4c02',
+                weight: 3,
+                opacity: 0.8
+            }).addTo(map);
+
+            // Centrer la carte
+            map.fitBounds(currentPolyline.getBounds());
+
+            // Ajouter les marqueurs de départ et d'arrivée
+            const startMarker = L.marker(smoothed[0], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background: #4caf50; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏁</div>'
+                })
+            }).addTo(map);
+
+            const endMarker = L.marker(smoothed[smoothed.length - 1], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background: #f44336; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏁</div>'
+                })
+            }).addTo(map);
+
+            currentMarkers.push(startMarker, endMarker);
+        }
+
+        function smoothCoordinates(coords, windowSize = 5) {
+            if (coords.length < windowSize) return coords;
+
+            const smoothed = [];
+            const halfWindow = Math.floor(windowSize / 2);
+
+            for (let i = 0; i < coords.length; i++) {
+                const start = Math.max(0, i - halfWindow);
+                const end = Math.min(coords.length, i + halfWindow + 1);
+                const window = coords.slice(start, end);
+
+                const avgLat = window.reduce((sum, c) => sum + c[0], 0) / window.length;
+                const avgLng = window.reduce((sum, c) => sum + c[1], 0) / window.length;
+
+                smoothed.push([avgLat, avgLng]);
+            }
+
+            return smoothed;
+        }
+
+        // Plugin Chart.js pour la ligne verticale au survol
+        const crosshairPlugin = {
+            id: 'crosshair',
+            afterDraw(chart) {
+                if (chart._crosshairX != null) {
+                    const { ctx, chartArea } = chart;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(chart._crosshairX, chartArea.top);
+                    ctx.lineTo(chart._crosshairX, chartArea.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
+        function updateHoverMarker(index) {
+            if (index < 0 || index >= currentStreams.length) return;
+            const point = currentStreams[index];
+            if (!point.latitude || !point.longitude) return;
+
+            const latlng = [point.latitude, point.longitude];
+
+            if (!hoverMarker) {
+                hoverMarker = L.circleMarker(latlng, {
+                    radius: 7,
+                    color: '#1e88e5',
+                    fillColor: '#1e88e5',
+                    fillOpacity: 1,
+                    weight: 3,
+                    className: 'hover-dot'
+                }).addTo(map);
+            } else {
+                hoverMarker.setLatLng(latlng);
+                if (!map.hasLayer(hoverMarker)) {
+                    hoverMarker.addTo(map);
+                }
+            }
+        }
+
+        function hideHoverMarker() {
+            if (hoverMarker && map.hasLayer(hoverMarker)) {
+                map.removeLayer(hoverMarker);
+            }
+        }
+
+        function displayElevationChart(streams) {
+            const ctx = document.getElementById('elevationChart').getContext('2d');
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            const distances = streams.map(s => (s.distance / 1000).toFixed(2));
+            const elevations = streams.map(s => s.altitude);
+
+            // Echelle Y : minimum 200m d'amplitude
+            const minElev = Math.min(...elevations);
+            const maxElev = Math.max(...elevations);
+            const range = maxElev - minElev;
+            const minRange = 200;
+            let yMin, yMax;
+            if (range < minRange) {
+                const mid = (minElev + maxElev) / 2;
+                yMin = Math.floor(mid - minRange / 2);
+                yMax = Math.ceil(mid + minRange / 2);
+            } else {
+                yMin = Math.floor(minElev);
+                yMax = Math.ceil(maxElev);
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: distances,
+                    datasets: [{
+                        label: 'Altitude (m)',
+                        data: elevations,
+                        borderColor: '#1e88e5',
+                        backgroundColor: 'rgba(30, 136, 229, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                plugins: [crosshairPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onHover(event, elements, chart) {
+                        if (!event.native) {
+                            chart._crosshairX = null;
+                            hideHoverMarker();
+                            chart.draw();
+                            return;
+                        }
+                        const points = chart.getElementsAtEventForMode(event.native, 'index', { intersect: false }, true);
+                        if (points.length > 0) {
+                            const idx = points[0].index;
+                            chart._crosshairX = points[0].element.x;
+                            chart.draw();
+                            updateHoverMarker(idx);
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title(items) {
+                                    return items[0] ? `${items[0].label} km` : '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Distance (km)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            min: yMin,
+                            max: yMax,
+                            title: {
+                                display: true,
+                                text: 'Altitude (m)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Cacher le marqueur quand la souris quitte le graphique
+            document.getElementById('elevationChart').addEventListener('mouseleave', () => {
+                if (chart) {
+                    chart._crosshairX = null;
+                    chart.draw();
+                }
+                hideHoverMarker();
+            });
+        }
+
+        function initMap() {
+            if (map) return;
+
+            console.log('Initialisation de la carte...');
+            map = L.map('map').setView([45.764, 4.836], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            console.log('✓ Carte initialisée');
+        }
+
+        // === ANNOTATIONS ===
+        async function loadAnnotations() {
+            console.log('Chargement des annotations...');
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('agenda_events')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                annotations = data || [];
+                console.log(`✓ ${annotations.length} annotations chargées`);
+            } catch (error) {
+                console.error('Erreur lors du chargement des annotations:', error);
+                annotations = [];
+            }
+        }
+
+        function displayWeekAnnotations(weekStart) {
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+
+            const weekAnnotations = annotations.filter(ann => {
+                if (ann.event_type === 'week') {
+                    const annWeekStart = new Date(ann.start_datetime);
+                    annWeekStart.setHours(0, 0, 0, 0);
+                    return annWeekStart.getTime() === weekStart.getTime();
+                } else if (ann.event_type === 'day' || ann.event_type === 'time') {
+                    const annDate = new Date(ann.start_datetime);
+                    return annDate >= weekStart && annDate <= weekEnd;
+                }
+                return false;
+            });
+
+            if (weekAnnotations.length === 0) return;
+
+            const container = document.createElement('div');
+            container.className = 'week-annotations-container';
+
+            weekAnnotations.forEach(ann => {
+                const item = document.createElement('div');
+                item.className = `week-annotation-item ${ann.event_type}`;
+
+                let prefix = '';
+                if (ann.event_type === 'week') prefix = '📅 Semaine: ';
+                else if (ann.event_type === 'day') prefix = '📆 Jour: ';
+                else if (ann.event_type === 'time') {
+                    const annTime = new Date(ann.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    prefix = `🕐 ${annTime}: `;
+                }
+                
+                item.textContent = prefix + ann.title;
+                container.appendChild(item);
+            });
+
+            const weekView = document.getElementById('week-view');
+            weekView.insertBefore(container, weekView.firstChild);
+        }
+
+        function openAnnotationModal() {
+            document.getElementById('annotationModal').classList.add('show');
+            
+            // Pré-remplir avec la date du jour
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('annotationDate').value = today;
+            
+            updateDateOptions();
+        }
+
+        function closeAnnotationModal() {
+            document.getElementById('annotationModal').classList.remove('show');
+            document.getElementById('annotationText').value = '';
+        }
+
+        function updateDateOptions() {
+            const type = document.getElementById('annotationType').value;
+            const dateGroup = document.getElementById('dateGroup');
+            const timeGroup = document.getElementById('timeGroup');
+
+            if (type === 'week') {
+                dateGroup.style.display = 'block';
+                timeGroup.style.display = 'none';
+                document.querySelector('label[for="annotationDate"]').textContent = 'Début de semaine (lundi)';
+            } else if (type === 'day') {
+                dateGroup.style.display = 'block';
+                timeGroup.style.display = 'none';
+                document.querySelector('label[for="annotationDate"]').textContent = 'Date';
+            } else if (type === 'time') {
+                dateGroup.style.display = 'block';
+                timeGroup.style.display = 'block';
+                document.querySelector('label[for="annotationDate"]').textContent = 'Date';
+            }
+        }
+
+        async function saveAnnotation() {
+            const type = document.getElementById('annotationType').value;
+            const text = document.getElementById('annotationText').value.trim();
+            
+            if (!text) {
+                alert('Veuillez saisir un texte');
+                return;
+            }
+
+            let annotationData = {
+                event_type: type,
+                title: text
+            };
+
+            if (type === 'week') {
+                const date = document.getElementById('annotationDate').value;
+                if (!date) {
+                    alert('Veuillez sélectionner une date');
+                    return;
+                }
+                const weekStart = getWeekStart(new Date(date));
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                annotationData.start_datetime = weekStart.toISOString();
+                annotationData.end_datetime = weekEnd.toISOString();
+                annotationData.all_day = true;
+            } else if (type === 'day') {
+                const date = document.getElementById('annotationDate').value;
+                if (!date) {
+                    alert('Veuillez sélectionner une date');
+                    return;
+                }
+                annotationData.start_datetime = `${date}T00:00:00`;
+                annotationData.all_day = true;
+            } else if (type === 'time') {
+                const date = document.getElementById('annotationDate').value;
+                const time = document.getElementById('annotationTime').value;
+                if (!date || !time) {
+                    alert('Veuillez sélectionner une date et une heure');
+                    return;
+                }
+                annotationData.start_datetime = `${date}T${time}:00`;
+                annotationData.all_day = false;
+            }
+
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('agenda_events')
+                    .insert([annotationData])
+                    .select();
+
+                if (error) throw error;
+
+                console.log('✓ Annotation enregistrée');
+                await loadAnnotations();
+                
+                if (currentView === 'week') {
+                    loadWeekView(selectedWeekStart);
+                } else {
+                    loadMonthView();
+                }
+                
+                closeAnnotationModal();
+            } catch (error) {
+                console.error('Erreur lors de l\'enregistrement:', error);
+                alert('Erreur lors de l\'enregistrement de l\'annotation');
+            }
+        }
+
+        // === INITIALISATION ===
+        async function initializeApp() {
+            console.log('=== INITIALISATION DE L\'APPLICATION ===');
+            
+            try {
+                console.log('1. Chargement du cache...');
+                loadCacheFromStorage();
+                
+                console.log('2. Chargement des annotations...');
+                await loadAnnotations();
+
+                console.log('3. Chargement des activités...');
+                const response = await fetch('/api/activities');
+                if (!response.ok) {
+                    throw new Error(`Erreur serveur (${response.status})`);
+                }
+                activities = await response.json();
+                console.log(`✓ ${activities.length} activités chargées`);
+
+                console.log('4. Affichage de la vue mois...');
+                showMonthView();
+                
+                console.log('=== APPLICATION INITIALISÉE ===');
+            } catch (error) {
+                console.error('❌ ERREUR lors de l\'initialisation:', error);
+                const errorDiv = document.getElementById('monthCalendar');
+                errorDiv.textContent = '';
+                const noData = document.createElement('div');
+                noData.className = 'no-data';
+                noData.textContent = 'Erreur de chargement: ' + error.message;
+                errorDiv.appendChild(noData);
+            }
+        }
+
+        // Lancer l'initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
+    </script>
+</body>
+</html>

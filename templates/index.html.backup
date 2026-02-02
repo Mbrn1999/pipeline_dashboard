@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strava Viewer - Mes Activités 2026</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: auto;
+            margin: 0;
+            padding-bottom: 40px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+            padding: 10px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .header-week-title {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px 0;
+            margin-bottom: 8px;
+            opacity: 0.95;
+        }
+
+        .add-annotation-btn {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .add-annotation-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Modal d'annotation */
+        .annotation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .annotation-modal.show {
+            display: flex;
+        }
+
+        .annotation-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .annotation-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .annotation-modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .annotation-modal-close {
+            cursor: pointer;
+            font-size: 28px;
+            color: #999;
+            line-height: 1;
+            transition: color 0.3s;
+        }
+
+        .annotation-modal-close:hover {
+            color: #333;
+        }
+
+        .annotation-form-group {
+            margin-bottom: 20px;
+        }
+
+        .annotation-form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .annotation-form-select,
+        .annotation-form-input,
+        .annotation-form-textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .annotation-form-select:focus,
+        .annotation-form-input:focus,
+        .annotation-form-textarea:focus {
+            outline: none;
+            border-color: #1e88e5;
+        }
+
+        .annotation-form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .annotation-time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .annotation-form-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .annotation-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .annotation-btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .annotation-btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .annotation-btn-save {
+            background: #1e88e5;
+            color: white;
+        }
+
+        .annotation-btn-save:hover {
+            background: #1976d2;
+        }
+
+        /* Annotations affichées */
+        .week-annotation {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .week-annotation-text {
+            color: #856404;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .day-annotation {
+            background: #d1ecf1;
+            border-left: 3px solid #17a2b8;
+            padding: 6px 10px;
+            margin-top: 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #0c5460;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin: 0;
+        }
+
+        .week-nav-section {
+            display: flex;
+            justify-content: center;
+        }
+
+        .period-filters {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .period-btn {
+            background: rgba(255,255,255,0.25);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.4);
+            padding: 5px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .period-btn:hover {
+            background: rgba(255,255,255,0.35);
+            border-color: rgba(255,255,255,0.6);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .period-btn:active {
+            transform: translateY(0);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: auto repeat(4, 1fr);
+            gap: 8px;
+            padding: 5px 15px 8px 15px;
+            align-items: center;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.25);
+            padding: 6px 8px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.highlight {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.03);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            opacity: 0.9;
+        }
+
+        .stat-title {
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0.95;
+            padding: 6px 10px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            flex: 1;
+            gap: 20px;
+            padding: 20px;
+            padding-bottom: 20px;
+            overflow: hidden;
+            max-height: calc(100vh - 180px);
+        }
+
+        .week-view {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-height: calc(100vh - 240px);
+        }
+
+        .activity-stats-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 100%;
+            max-height: calc(100vh - 240px);
+            overflow-y: auto;
+            display: none;
+        }
+
+        .activity-stats-panel.visible {
+            display: block;
+        }
+
+        .stats-panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e88e5;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-row-label {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .stat-row-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .week-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .day-item {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            background: #f8f8f8;
+        }
+
+        .day-item:hover {
+            background: #f0f0f0;
+            transform: translateX(3px);
+        }
+
+        .day-item.active {
+            background: #f5f3ff;
+            border-color: #1e88e5;
+        }
+
+        .day-item.has-activities {
+            background: #e8f5e9;
+        }
+
+        .day-item.has-activities.active {
+            background: #c8e6c9;
+            border-color: #4caf50;
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .day-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .day-date {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .day-activity-count {
+            font-size: 11px;
+            color: #666;
+            padding: 2px 8px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .day-activities-info {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 10px;
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .day-activity-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+        }
+
+        .day-activity-line:last-child {
+            margin-bottom: 0;
+        }
+
+        .activities-list {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 6px;
+            margin-bottom: 6px;
+            border: 1px solid #e0e0e0;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .activity-item {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .activity-item:hover {
+            background: #f8f8f8;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+
+        .activity-item.active {
+            background: #f5f3ff;
+            border-color: #1e88e5;
+            box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .activity-name {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .activity-type {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #1e88e5;
+            color: white;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .activity-stats {
+            display: flex;
+            gap: 8px;
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 3px;
+            flex-wrap: wrap;
+        }
+
+        .activity-time {
+            font-size: 10px;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+            max-height: calc(100vh - 240px);
+        }
+
+        .top-section {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            max-height: calc(100vh - 240px);
+        }
+
+        #map {
+            flex: 1;
+            min-height: 0;
+            border-radius: 8px;
+        }
+
+        .elevation-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 150px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        #elevationChart {
+            height: 100%;
+            width: 100%;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1e88e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+
+
+        .cache-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+
+        .cache-indicator.show {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="add-annotation-btn" onclick="openAnnotationModal()" title="Ajouter une annotation">+</button>
+        <div class="header-week-title" id="header-week-title">Semaine en cours</div>
+        <div class="stats" id="global-stats">
+            <div class="week-nav-section">
+                <div class="period-filters">
+                    <button class="period-btn" onclick="previousWeek()">← Semaine précédente</button>
+                    <button class="period-btn" onclick="nextWeek()">Semaine suivante →</button>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-distance">-</div>
+                <div class="stat-label" id="label-distance">Distance (km)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-time">-</div>
+                <div class="stat-label" id="label-time">Temps</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-elevation">-</div>
+                <div class="stat-label" id="label-elevation">Dénivelé (m)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-activities">-</div>
+                <div class="stat-label" id="label-activities">Activités</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="week-view" id="week-view">
+            <div class="loading">
+                <div class="spinner"></div>
+                Chargement...
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="top-section">
+                <div class="activity-stats-panel" id="activity-stats-panel">
+                    <div class="stats-panel-title">Statistiques de l'activité</div>
+                    <div id="stats-panel-content"></div>
+                </div>
+
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
+            </div>
+
+            <div class="elevation-container">
+                <canvas id="elevationChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicateur de cache -->
+    <div id="cacheIndicator" class="cache-indicator">
+        <span id="cacheCount">0</span> activités en cache 💾
+    </div>
+
+    <!-- Modal d'annotation -->
+    <div id="annotationModal" class="annotation-modal">
+        <div class="annotation-modal-content">
+            <div class="annotation-modal-header">
+                <div class="annotation-modal-title">Ajouter une annotation</div>
+                <span class="annotation-modal-close" onclick="closeAnnotationModal()">&times;</span>
+            </div>
+            
+            <div class="annotation-form-group">
+                <label for="annotationType" class="annotation-form-label">Type d'annotation</label>
+                <select id="annotationType" class="annotation-form-select" onchange="updateAnnotationForm()">
+                    <option value="week">Semaine entière</option>
+                    <option value="day">Jour entier</option>
+                    <option value="time">Plage horaire</option>
+                </select>
+            </div>
+
+            <div class="annotation-form-group" id="daySelectGroup" style="display: none;">
+                <label for="daySelect" class="annotation-form-label">Jour</label>
+                <select id="daySelect" class="annotation-form-select"></select>
+            </div>
+
+            <div id="timeInputsGroup" style="display: none;">
+                <div class="annotation-form-group">
+                    <label for="startTime" class="annotation-form-label">Heure de début</label>
+                    <input type="time" id="startTime" class="annotation-form-input">
+                </div>
+                <div class="annotation-form-group">
+                    <label for="endTime" class="annotation-form-label">Heure de fin</label>
+                    <input type="time" id="endTime" class="annotation-form-input">
+                </div>
+            </div>
+
+            <div class="annotation-form-group">
+                <label for="annotationText" class="annotation-form-label">Annotation</label>
+                <textarea id="annotationText" class="annotation-form-textarea" placeholder="Écrivez votre annotation ici..."></textarea>
+            </div>
+
+            <div class="annotation-form-buttons">
+                <button class="annotation-btn annotation-btn-cancel" onclick="closeAnnotationModal()">Annuler</button>
+                <button class="annotation-btn annotation-btn-save" onclick="saveAnnotation()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js?v={{ cache_buster }}"></script>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        console.log('=== DEBUT DU SCRIPT (v{{ cache_buster }}) ===');
+        
+        // Variables Supabase injectées depuis Flask
+        window.SUPABASE_CONFIG = {
+            url: '{{ supabase_url }}',
+            key: '{{ supabase_key }}'
+        };
+        
+        console.log('Supabase URL:', window.SUPABASE_CONFIG.url);
+        console.log('Supabase KEY:', window.SUPABASE_CONFIG.key ? 'Present' : 'Missing');
+        
+        // Créer le client Supabase (une seule fois)
+        if (!window.supabaseClient) {
+            const { createClient } = supabase;
+            window.supabaseClient = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+            console.log('✓ Supabase client créé');
+        }
+        
+        // Alias pour la compatibilité avec le reste du code
+        let map;
+        let currentPolyline = null;
+        let currentMarkers = [];
+        let activities = [];
+        let selectedActivityId = null;
+        let elevationChart = null;
+        let selectedDay = null;
+
+        // Semaine actuelle (date de début - lundi)
+        let currentWeekStart = getWeekStart(new Date());
+
+        // Cache pour les streams GPS (évite de recharger les mêmes données)
+        const streamsCache = new Map();
+
+        // Stockage des annotations (en cache local)
+        let annotations = {
+            week: [],
+            days: {}
+        };
+
+        // Charger les annotations depuis Supabase
+        async function loadAnnotations() {
+            console.log('   → loadAnnotations() appelée');
+            try {
+                // Récupérer l'utilisateur connecté
+                console.log('   → Vérification utilisateur...');
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (!user) {
+                    console.log('   ⚠ Utilisateur non connecté - pas d\'annotations chargées');
+                    return;
+                }
+
+                // Récupérer toutes les annotations de l'utilisateur
+                const { data, error } = await supabase
+                    .from('agenda_events')
+                    .select('*')
+                    .eq('user_id', user.id);
+
+                if (error) {
+                    console.error('Erreur chargement annotations:', error);
+                    return;
+                }
+
+                // Convertir les données Supabase en format annotations local
+                annotations = { week: [], days: {} };
+                
+                data.forEach(event => {
+                    const startDate = new Date(event.start_datetime);
+                    const dayKey = startDate.toISOString().split('T')[0];
+                    const weekKey = getWeekKeyFromDate(startDate);
+
+                    if (event.all_day && event.event_type === 'semaine') {
+                        annotations.week.push({
+                            id: event.id,
+                            weekKey: weekKey,
+                            text: event.description || event.title,
+                            date: event.created_at
+                        });
+                    } else {
+                        if (!annotations.days[weekKey]) {
+                            annotations.days[weekKey] = {};
+                        }
+                        if (!annotations.days[weekKey][dayKey]) {
+                            annotations.days[weekKey][dayKey] = [];
+                        }
+
+                        const annotation = {
+                            id: event.id,
+                            text: event.description || event.title,
+                            date: event.created_at
+                        };
+
+                        if (!event.all_day && event.start_datetime && event.end_datetime) {
+                            annotation.startTime = new Date(event.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                            annotation.endTime = new Date(event.end_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                        }
+
+                        annotations.days[weekKey][dayKey].push(annotation);
+                    }
+                });
+
+                console.log(`✓ ${data.length} annotations chargées depuis Supabase`);
+            } catch (e) {
+                console.error('Erreur chargement annotations:', e);
+            }
+        }
+
+        // Obtenir la clé de semaine à partir d'une date
+        function getWeekKeyFromDate(date) {
+            const weekStart = getWeekStart(date);
+            return weekStart.toISOString().split('T')[0];
+        }
+
+        // Sauvegarder une annotation dans Supabase
+        async function saveAnnotationToSupabase(type, text, dayDate, startTime, endTime) {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (!user) {
+                    alert('Vous devez être connecté pour enregistrer des annotations');
+                    return null;
+                }
+
+                let eventData = {
+                    user_id: user.id,
+                    title: text.substring(0, 100), // Titre court
+                    description: text,
+                    event_type: type === 'week' ? 'semaine' : 'entrainement',
+                    all_day: type !== 'time'
+                };
+
+                if (type === 'week') {
+                    // Pour une annotation de semaine, utiliser le lundi de la semaine
+                    const { start } = getPeriodDates();
+                    eventData.start_datetime = start.toISOString();
+                    eventData.end_datetime = start.toISOString();
+                } else {
+                    // Pour un jour ou plage horaire
+                    const baseDate = dayDate || new Date();
+                    
+                    if (type === 'time' && startTime && endTime) {
+                        eventData.start_datetime = `${baseDate}T${startTime}`;
+                        eventData.end_datetime = `${baseDate}T${endTime}`;
+                    } else {
+                        eventData.start_datetime = `${baseDate}T00:00:00`;
+                        eventData.end_datetime = `${baseDate}T23:59:59`;
+                    }
+                }
+
+                const { data, error } = await supabase
+                    .from('agenda_events')
+                    .insert(eventData)
+                    .select();
+
+                if (error) {
+                    console.error('Erreur sauvegarde:', error);
+                    alert('Erreur lors de l\'enregistrement');
+                    return null;
+                }
+
+                console.log('✓ Annotation enregistrée dans Supabase');
+                return data[0];
+            } catch (e) {
+                console.error('Erreur:', e);
+                alert('Erreur lors de l\'enregistrement');
+                return null;
+            }
+        }
+
+        // Ouvrir la modal d'annotation
+        function openAnnotationModal() {
+            const modal = document.getElementById('annotationModal');
+            modal.classList.add('show');
+            
+            // Remplir le select des jours
+            populateDaySelect();
+            
+            // Réinitialiser le formulaire
+            document.getElementById('annotationType').value = 'week';
+            document.getElementById('annotationText').value = '';
+            updateAnnotationForm();
+        }
+
+        // Fermer la modal
+        function closeAnnotationModal() {
+            const modal = document.getElementById('annotationModal');
+            modal.classList.remove('show');
+        }
+
+        // Remplir le select des jours
+        function populateDaySelect() {
+            const select = document.getElementById('daySelect');
+            const { start, end } = getPeriodDates();
+            const days = [];
+            const current = new Date(start);
+            const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+            while (current <= end) {
+                const dayName = dayNames[current.getDay()];
+                const dateStr = current.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                days.push({
+                    value: current.toISOString().split('T')[0],
+                    label: `${dayName} ${dateStr}`
+                });
+                current.setDate(current.getDate() + 1);
+            }
+
+            select.innerHTML = days.map(day => 
+                `<option value="${day.value}">${day.label}</option>`
+            ).join('');
+        }
+
+        // Mettre à jour le formulaire selon le type
+        function updateAnnotationForm() {
+            const type = document.getElementById('annotationType').value;
+            const dayGroup = document.getElementById('daySelectGroup');
+            const timeGroup = document.getElementById('timeInputsGroup');
+
+            if (type === 'week') {
+                dayGroup.style.display = 'none';
+                timeGroup.style.display = 'none';
+            } else if (type === 'day') {
+                dayGroup.style.display = 'block';
+                timeGroup.style.display = 'none';
+            } else if (type === 'time') {
+                dayGroup.style.display = 'block';
+                timeGroup.style.display = 'block';
+            }
+        }
+
+        // Sauvegarder l'annotation
+        async function saveAnnotation() {
+            const type = document.getElementById('annotationType').value;
+            const text = document.getElementById('annotationText').value.trim();
+            
+            if (!text) {
+                alert('Veuillez saisir une annotation');
+                return;
+            }
+
+            let dayDate = null;
+            let startTime = null;
+            let endTime = null;
+
+            if (type !== 'week') {
+                dayDate = document.getElementById('daySelect').value;
+                
+                if (type === 'time') {
+                    startTime = document.getElementById('startTime').value;
+                    endTime = document.getElementById('endTime').value;
+                    
+                    if (!startTime || !endTime) {
+                        alert('Veuillez saisir les heures de début et de fin');
+                        return;
+                    }
+                }
+            }
+
+            // Sauvegarder dans Supabase
+            const savedEvent = await saveAnnotationToSupabase(type, text, dayDate, startTime, endTime);
+            
+            if (!savedEvent) {
+                return; // Erreur déjà gérée
+            }
+
+            closeAnnotationModal();
+            
+            // Recharger les annotations depuis Supabase
+            await loadAnnotations();
+            
+            // Recharger la vue pour afficher l'annotation
+            if (type === 'week') {
+                displayWeekAnnotations();
+            } else {
+                loadWeekView();
+            }
+        }
+
+        // Obtenir la clé de la semaine courante
+        function getWeekKey() {
+            const { start } = getPeriodDates();
+            return start.toISOString().split('T')[0];
+        }
+
+        // Afficher les annotations de la semaine
+        function displayWeekAnnotations() {
+            const weekKey = getWeekKey();
+            const container = document.querySelector('.container');
+            
+            // Supprimer les anciennes annotations
+            document.querySelectorAll('.week-annotation').forEach(el => el.remove());
+            
+            // Afficher les annotations de la semaine
+            if (annotations.week) {
+                const weekAnnotations = annotations.week.filter(a => a.weekKey === weekKey);
+                weekAnnotations.forEach(annotation => {
+                    const div = document.createElement('div');
+                    div.className = 'week-annotation';
+                    div.innerHTML = `<div class="week-annotation-text">${annotation.text}</div>`;
+                    container.insertBefore(div, container.firstChild);
+                });
+            }
+        }
+
+        // Charger le cache depuis LocalStorage au démarrage
+        function loadCacheFromStorage() {
+            try {
+                const cached = localStorage.getItem('streamsCache');
+                if (cached) {
+                    const data = JSON.parse(cached);
+                    Object.entries(data).forEach(([key, value]) => {
+                        streamsCache.set(parseInt(key), value);
+                    });
+                    console.log(`✓ ${streamsCache.size} activités chargées depuis le cache local`);
+                }
+            } catch (e) {
+                console.log('Erreur chargement cache:', e);
+            }
+        }
+
+        // Sauvegarder le cache dans LocalStorage
+        function saveCacheToStorage() {
+            try {
+                const data = {};
+                streamsCache.forEach((value, key) => {
+                    data[key] = value;
+                });
+                localStorage.setItem('streamsCache', JSON.stringify(data));
+                updateCacheIndicator();
+            } catch (e) {
+                // Quota dépassé, nettoyer le cache
+                if (e.name === 'QuotaExceededError') {
+                    console.log('Cache plein, nettoyage...');
+                    streamsCache.clear();
+                    localStorage.removeItem('streamsCache');
+                }
+            }
+        }
+
+        // Mettre à jour l'indicateur de cache
+        function updateCacheIndicator() {
+            const indicator = document.getElementById('cacheIndicator');
+            const count = document.getElementById('cacheCount');
+            count.textContent = streamsCache.size;
+
+            // Afficher temporairement
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialiser la carte
+        function initMap() {
+            map = L.map('map').setView([45.75, 4.85], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // Obtenir le début de semaine (lundi) pour une date donnée
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = day === 0 ? 6 : day - 1; // Ajuster pour que lundi soit le premier jour
+            d.setDate(d.getDate() - diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        // Naviguer vers la semaine précédente
+        function previousWeek() {
+            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            loadStats();
+            loadWeekView();
+            displayWeekAnnotations();
+        }
+
+        // Naviguer vers la semaine suivante
+        function nextWeek() {
+            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            loadStats();
+            loadWeekView();
+            displayWeekAnnotations();
+        }
+
+        // Obtenir les dates de début et fin de la semaine actuelle
+        function getPeriodDates() {
+            const start = new Date(currentWeekStart);
+            const end = new Date(currentWeekStart);
+            end.setDate(end.getDate() + 6);
+            end.setHours(23, 59, 59, 999);
+
+            return { start, end };
+        }
+
+        // Filtrer les activités selon la période
+        function getFilteredActivities() {
+            const { start, end } = getPeriodDates();
+
+            return activities.filter(activity => {
+                const activityDate = new Date(activity.start_date_local);
+                return activityDate >= start && activityDate <= end;
+            });
+        }
+
+        // Charger les statistiques globales (toujours la semaine)
+        async function loadStats() {
+            try {
+                // Toujours afficher les stats de la semaine
+                const filteredActivities = getFilteredActivities();
+
+                const totalActivities = filteredActivities.length;
+                const totalDistance = filteredActivities.reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
+                const totalElevation = filteredActivities.reduce((sum, a) => sum + (a.total_elevation_gain || 0), 0);
+                const totalTime = filteredActivities.reduce((sum, a) => sum + (a.moving_time || 0), 0) / 3600;
+
+                // Mise à jour du titre de la semaine
+                const { start, end } = getPeriodDates();
+                const weekTitle = `${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                document.getElementById('header-week-title').textContent = weekTitle;
+
+                // Mise à jour des stats
+                document.getElementById('total-distance').textContent = totalDistance.toFixed(1);
+                document.getElementById('label-distance').textContent = 'Distance (km)';
+
+                document.getElementById('total-time').textContent = totalTime.toFixed(1);
+                document.getElementById('label-time').textContent = 'Temps (heures)';
+
+                document.getElementById('total-elevation').textContent = Math.round(totalElevation).toLocaleString();
+                document.getElementById('label-elevation').textContent = 'Dénivelé (m)';
+
+                document.getElementById('total-activities').textContent = totalActivities;
+                document.getElementById('label-activities').textContent = 'Activités';
+
+                // Retirer l'effet visuel
+                document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('highlight'));
+            } catch (error) {
+                console.error('Erreur lors du chargement des stats:', error);
+            }
+        }
+
+        // Formater le temps de manière détaillée (pour les stats d'activité)
+        function formatDetailedTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+                return `${hours}h${minutes.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}min`;
+        }
+
+        // Charger la vue de la semaine
+        function loadWeekView() {
+            const container = document.getElementById('week-view');
+            const { start, end } = getPeriodDates();
+            loadWeekDaysView(container, start, end);
+        }
+
+        // Afficher les jours de la semaine
+        function loadWeekDaysView(container, start, end) {
+            const days = [];
+            const current = new Date(start);
+
+            while (current <= end) {
+                days.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+            }
+
+            // Inverser l'ordre pour afficher du dimanche au lundi (plus récent en haut)
+            days.reverse();
+
+            const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+            const weekTitle = `${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+            container.innerHTML = `
+                ${days.map(day => {
+                    const dayActivities = activities.filter(activity => {
+                        const activityDate = new Date(activity.start_date_local);
+                        return activityDate.toDateString() === day.toDateString();
+                    });
+
+                    const hasActivities = dayActivities.length > 0;
+                    const dayName = dayNames[day.getDay()];
+                    const dateStr = day.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+                    // Générer les infos d'activités
+                    let activitiesInfo = '';
+                    if (hasActivities) {
+                        activitiesInfo = `
+                            <div class="day-activities-info">
+                                ${dayActivities.map(activity => {
+                                    const distance = (activity.distance / 1000).toFixed(1);
+                                    const time = formatTime(activity.moving_time);
+                                    return `
+                                        <div class="day-activity-line" onclick="selectActivity(${activity.strava_id}); event.stopPropagation();">
+                                            ${getSportIcon(activity.sport_type)} ${time} • ${distance} km
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+
+                    // Générer les annotations du jour
+                    const weekKey = getWeekKey();
+                    const dayKey = day.toISOString().split('T')[0];
+                    let dayAnnotations = '';
+                    if (annotations.days[weekKey] && annotations.days[weekKey][dayKey]) {
+                        dayAnnotations = annotations.days[weekKey][dayKey].map(annotation => {
+                            let timeInfo = '';
+                            if (annotation.startTime && annotation.endTime) {
+                                timeInfo = `${annotation.startTime} - ${annotation.endTime}: `;
+                            }
+                            return `<div class="day-annotation">${timeInfo}${annotation.text}</div>`;
+                        }).join('');
+                    }
+
+                    return `
+                        <div class="day-item ${hasActivities ? 'has-activities' : ''}" onclick="selectDay('${day.toISOString()}')">
+                            <div class="day-header">
+                                <div class="day-name">${dayName}</div>
+                                <div class="day-date">${dateStr}</div>
+                            </div>
+                            ${hasActivities ? `
+                                <div class="day-activity-count">${dayActivities.length} activité${dayActivities.length > 1 ? 's' : ''}</div>
+                                ${activitiesInfo}
+                            ` : '<div style="font-size: 11px; color: #999;">Pas d\'activité</div>'}
+                            ${dayAnnotations}
+                        </div>
+                    `;
+                }).join('')}
+            `;
+
+            // Sélectionner le premier jour avec activités
+            const firstDayWithActivities = days.find(day => {
+                return activities.some(activity => {
+                    const activityDate = new Date(activity.start_date_local);
+                    return activityDate.toDateString() === day.toDateString();
+                });
+            });
+
+            if (firstDayWithActivities) {
+                selectDay(firstDayWithActivities.toISOString());
+            }
+        }
+
+        // Afficher les jours du mois
+        function loadMonthDaysView(container, start, end) {
+            const days = [];
+            const current = new Date(start);
+
+            while (current <= end) {
+                days.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+            }
+
+            const monthName = start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+            container.innerHTML = `
+                <div class="week-title">${monthName}</div>
+                <div style="max-height: 100%; overflow-y: auto;">
+                    ${days.map(day => {
+                        const dayActivities = activities.filter(activity => {
+                            const activityDate = new Date(activity.start_date_local);
+                            return activityDate.toDateString() === day.toDateString();
+                        });
+
+                        const hasActivities = dayActivities.length > 0;
+                        const dateStr = day.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+
+                        return `
+                            <div class="day-item ${hasActivities ? 'has-activities' : ''}" onclick="selectDay('${day.toISOString()}')">
+                                <div class="day-header">
+                                    <div class="day-date">${dateStr}</div>
+                                </div>
+                                ${hasActivities ? `
+                                    <div class="day-activity-count">${dayActivities.length} activité${dayActivities.length > 1 ? 's' : ''}</div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            // Sélectionner le premier jour avec activités
+            const firstDayWithActivities = days.find(day => {
+                return activities.some(activity => {
+                    const activityDate = new Date(activity.start_date_local);
+                    return activityDate.toDateString() === day.toDateString();
+                });
+            });
+
+            if (firstDayWithActivities) {
+                selectDay(firstDayWithActivities.toISOString());
+            }
+        }
+
+        // Afficher la vue année (liste de toutes les activités)
+        function loadYearView(container, start, end) {
+            const filteredActivities = getFilteredActivities();
+
+            if (filteredActivities.length === 0) {
+                container.innerHTML = '<div class="no-data">Aucune activité trouvée</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="week-title">Année 2026</div>
+                <div style="max-height: 100%; overflow-y: auto;">
+                    ${filteredActivities.map(activity => {
+                        const date = new Date(activity.start_date_local);
+                        const distance = (activity.distance / 1000).toFixed(2);
+                        const time = formatTime(activity.moving_time);
+                        const elevation = Math.round(activity.total_elevation_gain);
+                        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+                        return `
+                            <div class="activity-item" data-id="${activity.strava_id}" onclick="selectActivity(${activity.strava_id})">
+                                <div class="activity-type">${getSportIcon(activity.sport_type)} ${activity.sport_type}</div>
+                                <div class="activity-name">${activity.name}</div>
+                                <div class="activity-stats">
+                                    <span>📏 ${distance} km</span>
+                                    <span>⏱️ ${time}</span>
+                                    <span>⛰️ ${elevation} m</span>
+                                </div>
+                                <div class="activity-time">${formatDate(date)}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            // Sélectionner la première activité
+            if (filteredActivities.length > 0) {
+                selectActivity(filteredActivities[0].strava_id);
+            }
+        }
+
+        // Sélectionner un jour
+        function selectDay(dayIso) {
+            const day = new Date(dayIso);
+
+            // Trouver le dayItem - soit via l'event, soit en cherchant dans le DOM
+            let dayItem;
+            if (typeof event !== 'undefined' && event.target) {
+                dayItem = event.target.closest('.day-item');
+            } else {
+                // Appel programmatique - trouver le jour correspondant
+                const dayItems = document.querySelectorAll('.day-item');
+                dayItem = Array.from(dayItems).find(item => {
+                    const onclick = item.getAttribute('onclick');
+                    return onclick && onclick.includes(dayIso);
+                });
+            }
+
+            if (!dayItem) return;
+
+            // Si le jour est déjà sélectionné, le désélectionner
+            if (dayItem.classList.contains('active')) {
+                dayItem.classList.remove('active');
+                selectedDay = null;
+                return;
+            }
+
+            selectedDay = dayIso;
+
+            // Mettre à jour l'interface
+            document.querySelectorAll('.day-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            dayItem.classList.add('active');
+
+            // Afficher les activités du jour (sélectionner la première)
+            const dayActivities = activities.filter(activity => {
+                const activityDate = new Date(activity.start_date_local);
+                return activityDate.toDateString() === day.toDateString();
+            });
+
+            if (dayActivities.length > 0) {
+                selectActivity(dayActivities[0].strava_id);
+            }
+        }
+
+        // Charger le panneau de statistiques détaillées
+        function loadActivityStatsPanel(stravaId) {
+            const activity = activities.find(a => a.strava_id === stravaId);
+            if (!activity) return;
+
+            const panel = document.getElementById('activity-stats-panel');
+            const content = document.getElementById('stats-panel-content');
+
+            // Calculs
+            const distance = (activity.distance / 1000).toFixed(2);
+            const movingTime = formatDetailedTime(activity.moving_time);
+            const elapsedTime = formatDetailedTime(activity.elapsed_time);
+            const elevation = Math.round(activity.total_elevation_gain);
+            const avgSpeed = (activity.average_speed * 3.6).toFixed(1);
+            const maxSpeed = activity.max_speed ? (activity.max_speed * 3.6).toFixed(1) : 'N/A';
+            const avgHR = activity.average_heartrate ? Math.round(activity.average_heartrate) : 'N/A';
+            const maxHR = activity.max_heartrate ? Math.round(activity.max_heartrate) : 'N/A';
+            const elevHigh = activity.elev_high ? Math.round(activity.elev_high) : 'N/A';
+            const elevLow = activity.elev_low ? Math.round(activity.elev_low) : 'N/A';
+            const kudos = activity.kudos_count || 0;
+            const date = new Date(activity.start_date_local).toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            content.innerHTML = `
+                <div class="stat-row">
+                    <span class="stat-row-label">📅 Date</span>
+                    <span class="stat-row-value">${date}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-row-label">🏃 Type</span>
+                    <span class="stat-row-value">${activity.sport_type}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-row-label">📏 Distance</span>
+                    <span class="stat-row-value">${distance} km</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-row-label">⏱️ Temps de mouvement</span>
+                    <span class="stat-row-value">${movingTime}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-row-label">⛰️ Dénivelé</span>
+                    <span class="stat-row-value">${elevation} m</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-row-label">🚀 Vitesse moyenne</span>
+                    <span class="stat-row-value">${avgSpeed} km/h</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-row-label">❤️ FC moyenne</span>
+                    <span class="stat-row-value">${avgHR} bpm</span>
+                </div>
+            `;
+
+            panel.classList.add('visible');
+        }
+
+        async function selectActivity(stravaId) {
+            selectedActivityId = stravaId;
+
+            // Charger le panneau de statistiques détaillées
+            loadActivityStatsPanel(stravaId);
+
+            // Charger la trace
+            await loadActivityTrace(stravaId);
+
+            // Précharger les activités suivantes en arrière-plan
+            preloadNextActivities(stravaId);
+        }
+
+        // Précharger les 2 activités suivantes en arrière-plan
+        async function preloadNextActivities(currentId) {
+            const currentIndex = activities.findIndex(a => a.strava_id === currentId);
+            if (currentIndex === -1) return;
+
+            // Précharger les 2 activités suivantes
+            for (let i = 1; i <= 2; i++) {
+                const nextIndex = currentIndex + i;
+                if (nextIndex < activities.length) {
+                    const nextActivity = activities[nextIndex];
+                    if (!streamsCache.has(nextActivity.strava_id)) {
+                        // Charger en arrière-plan sans bloquer l'interface
+                        fetch(`/api/activity/${nextActivity.strava_id}/streams`)
+                            .then(response => response.json())
+                            .then(streams => {
+                                streamsCache.set(nextActivity.strava_id, streams);
+                                saveCacheToStorage();
+                                console.log(`✓ Préchargement terminé pour l'activité ${nextActivity.strava_id}`);
+                            })
+                            .catch(err => console.log('Erreur préchargement:', err));
+                    }
+                }
+            }
+        }
+
+
+        // Fonction pour lisser les coordonnées GPS (moyenne mobile)
+        function smoothCoordinates(coordinates, windowSize = 5) {
+            if (coordinates.length < windowSize) return coordinates;
+
+            const smoothed = [];
+            const halfWindow = Math.floor(windowSize / 2);
+
+            for (let i = 0; i < coordinates.length; i++) {
+                const start = Math.max(0, i - halfWindow);
+                const end = Math.min(coordinates.length, i + halfWindow + 1);
+
+                let sumLat = 0, sumLng = 0, count = 0;
+
+                for (let j = start; j < end; j++) {
+                    sumLat += coordinates[j][0];
+                    sumLng += coordinates[j][1];
+                    count++;
+                }
+
+                smoothed.push([sumLat / count, sumLng / count]);
+            }
+
+            return smoothed;
+        }
+
+        // Charger la trace GPS
+        async function loadActivityTrace(stravaId) {
+            try {
+                // Vérifier si les données sont en cache
+                let streams;
+                if (streamsCache.has(stravaId)) {
+                    console.log(`✓ Utilisation du cache pour l'activité ${stravaId}`);
+                    streams = streamsCache.get(stravaId);
+                } else {
+                    console.log(`⬇ Chargement des streams pour l'activité ${stravaId}`);
+                    const response = await fetch(`/api/activity/${stravaId}/streams`);
+                    streams = await response.json();
+                    // Mettre en cache pour la prochaine fois
+                    streamsCache.set(stravaId, streams);
+                    saveCacheToStorage();
+                }
+
+                // Supprimer l'ancienne polyline
+                if (currentPolyline) {
+                    map.removeLayer(currentPolyline);
+                }
+
+                // Supprimer les anciens marqueurs
+                currentMarkers.forEach(marker => map.removeLayer(marker));
+                currentMarkers = [];
+
+                if (streams.length === 0) {
+                    alert('Pas de trace GPS disponible pour cette activité');
+                    return;
+                }
+
+                const coordinates = streams
+                    .filter(s => s.latitude && s.longitude)
+                    .map(s => [s.latitude, s.longitude]);
+
+                // Lisser les coordonnées pour réduire les imprécisions GPS
+                const smoothedCoordinates = smoothCoordinates(coordinates, 5);
+
+                currentPolyline = L.polyline(smoothedCoordinates, {
+                    color: '#1e88e5',
+                    weight: 3,
+                    opacity: 0.8,
+                    smoothFactor: 3.0  // Augmente le lissage de Leaflet (défaut: 1.0)
+                }).addTo(map);
+
+                // Ajouter des marqueurs de début et fin
+                if (smoothedCoordinates.length > 0) {
+                    const startMarker = L.marker(smoothedCoordinates[0], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(map).bindPopup('Départ');
+
+                    const endMarker = L.marker(smoothedCoordinates[smoothedCoordinates.length - 1], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(map).bindPopup('Arrivée');
+
+                    currentMarkers.push(startMarker, endMarker);
+                }
+
+                // Ajuster la vue pour montrer toute la trace avec une bonne marge
+                // Petit délai pour s'assurer que la carte est bien rendue
+                setTimeout(() => {
+                    // Recalculer la taille de la carte au cas où le conteneur a changé
+                    map.invalidateSize();
+                    map.fitBounds(currentPolyline.getBounds(), {
+                        padding: [50, 50]
+                    });
+                }, 100);
+
+                // Créer le graphique d'altitude
+                updateElevationChart(streams);
+
+            } catch (error) {
+                console.error('Erreur lors du chargement de la trace:', error);
+            }
+        }
+
+        // Mettre à jour le graphique d'altitude
+        function updateElevationChart(streams) {
+            const ctx = document.getElementById('elevationChart');
+
+            // Filtrer et préparer les données
+            const elevationData = streams
+                .filter(s => s.altitude !== null && s.distance !== null)
+                .map(s => ({
+                    x: s.distance / 1000, // Convertir en km
+                    y: s.altitude
+                }));
+
+            if (elevationData.length === 0) {
+                return;
+            }
+
+            // Détruire l'ancien graphique s'il existe
+            if (elevationChart) {
+                elevationChart.destroy();
+            }
+
+            // Créer le nouveau graphique
+            elevationChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Altitude (m)',
+                        data: elevationData,
+                        borderColor: '#1e88e5',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: 0
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Profil d\'altitude',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Altitude: ' + Math.round(context.parsed.y) + ' m';
+                                },
+                                title: function(context) {
+                                    return 'Distance: ' + context[0].parsed.x.toFixed(2) + ' km';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Distance (km)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            min: 0,
+                            max: Math.max(...elevationData.map(d => d.x)),
+                            ticks: {
+                                stepSize: 1
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Altitude (m)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // Formater le temps
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+                return `${hours}h${minutes.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}min`;
+        }
+
+        // Formater la date
+        function formatDate(date) {
+            return date.toLocaleDateString('fr-FR', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Icône par type de sport
+        function getSportIcon(sportType) {
+            const icons = {
+                'Run': '🏃',
+                'Ride': '🚴',
+                'VirtualRide': '🚴',
+                'Swim': '🏊',
+                'Hike': '🥾',
+                'Walk': '🚶',
+                'AlpineSki': '⛷️',
+                'BackcountrySki': '🎿',
+                'NordicSki': '⛷️',
+                'Snowboard': '🏂'
+            };
+            return icons[sportType] || '🏃';
+        }
+
+        // Initialiser l'application
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('=== INITIALISATION DE L\'APPLICATION ===');
+            
+            try {
+                console.log('1. Chargement du cache...');
+                loadCacheFromStorage();
+                
+                console.log('2. Chargement des annotations...');
+                await loadAnnotations();
+                
+                console.log('3. Initialisation de la carte...');
+                initMap();
+
+                // Charger d'abord toutes les activités
+                console.log('4. Chargement des activités...');
+                const response = await fetch('/api/activities');
+                activities = await response.json();
+                console.log(`✓ ${activities.length} activités chargées`);
+
+                // Puis charger les stats et la vue
+                console.log('5. Chargement des stats et de la vue...');
+                loadStats();
+                loadWeekView();
+                displayWeekAnnotations();
+                
+                console.log('=== APPLICATION INITIALISEE ===');
+            } catch (error) {
+                console.error('❌ ERREUR lors de l\'initialisation:', error);
+                document.getElementById('week-view').innerHTML = '<div class="no-data">Erreur de chargement: ' + error.message + '</div>';
+            }
+        });
+    </script>
+</body>
+</html>
