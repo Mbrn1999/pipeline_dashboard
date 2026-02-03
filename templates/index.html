@@ -673,15 +673,20 @@
             <div class="form-group">
                 <label for="annotationType" class="form-label">Type d'annotation</label>
                 <select id="annotationType" class="form-select" onchange="updateDateOptions()">
-                    <option value="week">Semaine</option>
+                    <option value="period">Période (plusieurs jours)</option>
                     <option value="day">Jour</option>
                     <option value="time">Plage horaire</option>
                 </select>
             </div>
 
-            <div class="form-group" id="dateGroup">
-                <label for="annotationDate" class="form-label">Date</label>
-                <input type="date" id="annotationDate" class="form-select" />
+            <div class="form-group" id="startDateGroup">
+                <label for="annotationStartDate" class="form-label">Date de début</label>
+                <input type="date" id="annotationStartDate" class="form-select" />
+            </div>
+
+            <div class="form-group" id="endDateGroup" style="display: none;">
+                <label for="annotationEndDate" class="form-label">Date de fin</label>
+                <input type="date" id="annotationEndDate" class="form-select" />
             </div>
 
             <div class="form-group" id="timeGroup" style="display: none;">
@@ -942,7 +947,7 @@
             const result = [];
 
             annotations.forEach(ann => {
-                if (ann.event_type === 'week') {
+                if (ann.event_type === 'period') {
                     const weekStart = new Date(ann.start_datetime);
                     const weekEnd = ann.end_datetime ? new Date(ann.end_datetime) : new Date(weekStart);
                     if (!ann.end_datetime) weekEnd.setDate(weekEnd.getDate() + 6);
@@ -1483,8 +1488,8 @@
             weekEnd.setDate(weekEnd.getDate() + 6);
 
             const weekAnnotations = annotations.filter(ann => {
-                if (ann.event_type === 'week') {
-                    const annWeekStart = new Date(ann.start_datetime);
+                if (ann.event_type === 'period') {
+                    const annWeekSt©art = new Date(ann.start_datetime);
                     annWeekStart.setHours(0, 0, 0, 0);
                     return annWeekStart.getTime() === weekStart.getTime();
                 } else if (ann.event_type === 'day' || ann.event_type === 'time') {
@@ -1536,24 +1541,28 @@
 
         function updateDateOptions() {
             const type = document.getElementById('annotationType').value;
-            const dateGroup = document.getElementById('dateGroup');
+            const startDateGroup = document.getElementById('startDateGroup');
+            const endDateGroup = document.getElementById('endDateGroup');
             const timeGroup = document.getElementById('timeGroup');
 
-            if (type === 'week') {
-                dateGroup.style.display = 'block';
+            if (type === 'period') {
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'block';
                 timeGroup.style.display = 'none';
-                document.querySelector('label[for="annotationDate"]').textContent = 'Début de semaine (lundi)';
+                document.querySelector('label[for="annotationStartDate"]').textContent = 'Premier jour';
+                document.querySelector('label[for="annotationEndDate"]').textContent = 'Dernier jour';
             } else if (type === 'day') {
-                dateGroup.style.display = 'block';
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'none';
                 timeGroup.style.display = 'none';
-                document.querySelector('label[for="annotationDate"]').textContent = 'Date';
+                document.querySelector('label[for="annotationStartDate"]').textContent = 'Date';
             } else if (type === 'time') {
-                dateGroup.style.display = 'block';
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'none';
                 timeGroup.style.display = 'block';
-                document.querySelector('label[for="annotationDate"]').textContent = 'Date';
+                document.querySelector('label[for="annotationStartDate"]').textContent = 'Date';
             }
         }
-
         async function saveAnnotation() {
             const type = document.getElementById('annotationType').value;
             const text = document.getElementById('annotationText').value.trim();
@@ -1568,34 +1577,45 @@
                 title: text
             };
 
-            if (type === 'week') {
-                const date = document.getElementById('annotationDate').value;
-                if (!date) {
-                    alert('Veuillez sélectionner une date');
+            if (type === 'period') {
+                const startDate = document.getElementById('annotationStartDate').value;
+                const endDate = document.getElementById('annotationEndDate').value;
+                if (!startDate || !endDate) {
+                    alert('Veuillez sélectionner les dates de début et de fin');
                     return;
                 }
-                const weekStart = getWeekStart(new Date(date));
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                annotationData.start_datetime = weekStart.toISOString();
-                annotationData.end_datetime = weekEnd.toISOString();
+                if (new Date(endDate) < new Date(startDate)) {
+                    alert('La date de fin doit être après la date de début');
+                    return;
+                }
+                const startObj = new Date(startDate + 'T00:00:00');
+                const endObj = new Date(endDate + 'T23:59:59');
+                annotationData.start_datetime = startObj.toISOString();
+                annotationData.end_datetime = endObj.toISOString();
                 annotationData.all_day = true;
             } else if (type === 'day') {
-                const date = document.getElementById('annotationDate').value;
+                const date = document.getElementById('annotationStartDate').value;
                 if (!date) {
                     alert('Veuillez sélectionner une date');
                     return;
                 }
-                annotationData.start_datetime = `${date}T00:00:00`;
+                const startObj = new Date(date + 'T00:00:00');
+                const endObj = new Date(date + 'T23:59:59');
+                annotationData.start_datetime = startObj.toISOString();
+                annotationData.end_datetime = endObj.toISOString();
                 annotationData.all_day = true;
             } else if (type === 'time') {
-                const date = document.getElementById('annotationDate').value;
+                const date = document.getElementById('annotationStartDate').value;
                 const time = document.getElementById('annotationTime').value;
                 if (!date || !time) {
                     alert('Veuillez sélectionner une date et une heure');
                     return;
                 }
-                annotationData.start_datetime = `${date}T${time}:00`;
+                const startObj = new Date(`${date}T${time}:00`);
+                const endObj = new Date(startObj);
+                endObj.setHours(endObj.getHours() + 1);
+                annotationData.start_datetime = startObj.toISOString();
+                annotationData.end_datetime = endObj.toISOString();
                 annotationData.all_day = false;
             }
 
@@ -1619,7 +1639,8 @@
                 closeAnnotationModal();
             } catch (error) {
                 console.error('Erreur lors de l\'enregistrement:', error);
-                alert('Erreur lors de l\'enregistrement de l\'annotation');
+                console.error('Détails:', JSON.stringify(error, null, 2));
+                alert('Erreur: ' + (error.message || JSON.stringify(error)));
             }
         }
 
