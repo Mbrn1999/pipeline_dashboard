@@ -739,6 +739,7 @@
         let currentView = 'month'; // 'month' ou 'week'
         let currentMonth = new Date(2026, 1, 1); // Février 2026
         let selectedWeekStart = null;
+        let preselectedActivityId = null; // NOUVEAU: pour mémoriser l'activité à sélectionner
 
         // === GESTION DU CACHE ===
         function clearCache() {
@@ -781,6 +782,7 @@
         // === NAVIGATION VUE MOIS / SEMAINE ===
         function showMonthView() {
             currentView = 'month';
+            preselectedActivityId = null; // Réinitialiser la présélection
             document.getElementById('monthView').style.display = 'block';
             document.getElementById('weekView').style.display = 'none';
             document.getElementById('monthViewHeader').style.display = 'flex';
@@ -790,9 +792,11 @@
             loadMonthView();
         }
 
-        function showWeekView(weekStartDate) {
+        function showWeekView(weekStartDate, activityIdToSelect = null) {
             currentView = 'week';
             selectedWeekStart = weekStartDate;
+            preselectedActivityId = activityIdToSelect; // NOUVEAU: mémoriser l'activité à sélectionner
+            
             document.getElementById('monthView').style.display = 'none';
             document.getElementById('weekView').style.display = 'flex';
             document.getElementById('monthViewHeader').style.display = 'none';
@@ -899,12 +903,21 @@
             dayActivities.forEach(activity => {
                 const activityEl = document.createElement('div');
                 activityEl.className = `day-activity ${activity.sport_type === 'Run' ? 'run' : 'ride'}`;
+                activityEl.setAttribute('data-activity-id', activity.strava_id); // NOUVEAU: stocker l'ID
 
                 const icon = activity.sport_type === 'Run' ? '🏃' : '🚴';
                 const time = formatDuration(activity.moving_time);
                 const distance = (activity.distance / 1000).toFixed(1);
                 
                 activityEl.textContent = `${icon} ${time} ${distance}km`;
+                
+                // NOUVEAU: Click handler sur l'activité pour aller directement en vue semaine
+                activityEl.onclick = (e) => {
+                    e.stopPropagation(); // Empêcher le click sur le jour
+                    const weekStart = getWeekStart(date);
+                    showWeekView(weekStart, activity.strava_id);
+                };
+                
                 activitiesDiv.appendChild(activityEl);
             });
             div.appendChild(activitiesDiv);
@@ -922,8 +935,11 @@
             });
             div.appendChild(annotationsDiv);
 
-            // Click handler : aller vers la vue semaine (tous les jours, y compris hors mois)
-            div.onclick = () => {
+            // Click handler sur le jour (seulement si on ne clique pas sur une activité)
+            div.onclick = (e) => {
+                // Si on a cliqué sur une activité, ne rien faire (géré par l'activité elle-même)
+                if (e.target.classList.contains('day-activity')) return;
+                
                 const weekStart = getWeekStart(date);
                 showWeekView(weekStart);
             };
@@ -999,8 +1015,6 @@
 
             // Afficher les jours de la semaine avec leurs activités
             displayWeekDays(weekStart, weekActivities);
-
-            // Les annotations sont maintenant affichées inline dans displayWeekDays
 
             // Précharger les GPS des premières activités
             if (weekActivities.length > 0) {
@@ -1091,11 +1105,27 @@
 
                 weekView.appendChild(dayContainer);
             }
+
+            // NOUVEAU: Sélectionner automatiquement l'activité présélectionnée
+            if (preselectedActivityId) {
+                setTimeout(() => {
+                    const activityElement = document.querySelector(`[data-activity-id="${preselectedActivityId}"]`);
+                    if (activityElement) {
+                        console.log(`🎯 Auto-sélection de l'activité ${preselectedActivityId}`);
+                        activityElement.click();
+                        
+                        // Scroller jusqu'à l'activité
+                        activityElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    preselectedActivityId = null; // Réinitialiser après utilisation
+                }, 300); // Petit délai pour laisser le DOM se mettre à jour
+            }
         }
 
         function createActivityItem(activity) {
             const div = document.createElement('div');
             div.className = 'activity-item';
+            div.setAttribute('data-activity-id', activity.strava_id); // NOUVEAU: ajouter l'attribut data
             div.onclick = (e) => selectActivity(activity.strava_id, e);
 
             // Icône selon le type
@@ -1489,7 +1519,7 @@
 
             const weekAnnotations = annotations.filter(ann => {
                 if (ann.event_type === 'period') {
-                    const annWeekSt©art = new Date(ann.start_datetime);
+                    const annWeekStart = new Date(ann.start_datetime);
                     annWeekStart.setHours(0, 0, 0, 0);
                     return annWeekStart.getTime() === weekStart.getTime();
                 } else if (ann.event_type === 'day' || ann.event_type === 'time') {
@@ -1529,7 +1559,7 @@
             
             // Pré-remplir avec la date du jour
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('annotationDate').value = today;
+            document.getElementById('annotationStartDate').value = today;
             
             updateDateOptions();
         }
@@ -1563,6 +1593,7 @@
                 document.querySelector('label[for="annotationStartDate"]').textContent = 'Date';
             }
         }
+
         async function saveAnnotation() {
             const type = document.getElementById('annotationType').value;
             const text = document.getElementById('annotationText').value.trim();
