@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Training Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-box {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 340px;
+            width: 90%;
+        }
+        .login-box h2 { margin-bottom: 8px; color: #333; font-size: 22px; }
+        .login-box p { color: #999; font-size: 13px; margin-bottom: 24px; }
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+        .login-box input:focus { outline: none; border-color: #1e88e5; }
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .login-box button:hover { opacity: 0.9; }
+        .login-error {
+            color: #f44336;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+        .login-success {
+            color: #4caf50;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+        .toggle-link {
+            color: #1e88e5;
+            font-size: 13px;
+            margin-top: 16px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .toggle-link:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Training Viewer</h2>
+        <p id="subtitle">Connectez-vous pour acceder au site</p>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <input type="email" id="email" placeholder="Email" autofocus required />
+            <input type="password" id="password" placeholder="Mot de passe" required />
+            <button type="submit" id="submitBtn">Se connecter</button>
+        </form>
+
+        <div class="login-error" id="error"></div>
+        <div class="login-success" id="success"></div>
+
+        <div class="toggle-link" id="forgotLink" onclick="handleForgotPassword()">Mot de passe oublie ?</div>
+        <div class="toggle-link" id="toggleLink" onclick="toggleMode()">Pas de compte ? Creer un compte</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth.js"></script>
+    <script>
+        let isSignUp = false;
+        const client = initSupabase();
+
+        // Si deja connecte, rediriger
+        (async () => {
+            const { data: { session } } = await client.auth.getSession();
+            if (session) {
+                window.location.href = 'dashboard.html';
+            }
+        })();
+
+        function toggleMode() {
+            isSignUp = !isSignUp;
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            document.getElementById('forgotLink').style.display = isSignUp ? 'none' : '';
+            if (isSignUp) {
+                document.getElementById('subtitle').textContent = 'Creez votre compte';
+                document.getElementById('submitBtn').textContent = 'Creer un compte';
+                document.getElementById('toggleLink').textContent = 'Deja un compte ? Se connecter';
+            } else {
+                document.getElementById('subtitle').textContent = 'Connectez-vous pour acceder au site';
+                document.getElementById('submitBtn').textContent = 'Se connecter';
+                document.getElementById('toggleLink').textContent = 'Pas de compte ? Creer un compte';
+            }
+        }
+
+        async function handleForgotPassword() {
+            const email = document.getElementById('email').value;
+            const errorEl = document.getElementById('error');
+            const successEl = document.getElementById('success');
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (!email) {
+                errorEl.textContent = 'Entrez votre email d\'abord';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const { error } = await client.auth.resetPasswordForEmail(email);
+            if (error) {
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            } else {
+                successEl.textContent = 'Email de reinitialisation envoye !';
+                successEl.style.display = 'block';
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('error');
+            const successEl = document.getElementById('success');
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = isSignUp ? 'Creation...' : 'Connexion...';
+
+            try {
+                if (isSignUp) {
+                    const { data, error } = await client.auth.signUp({ email, password });
+                    if (error) throw error;
+                    if (data.user && !data.session) {
+                        successEl.textContent = 'Compte cree ! Verifiez votre email pour confirmer.';
+                        successEl.style.display = 'block';
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
+                } else {
+                    const { data, error } = await client.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (err) {
+                errorEl.textContent = err.message || 'Une erreur est survenue';
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = isSignUp ? 'Creer un compte' : 'Se connecter';
+            }
+        }
+    </script>
+</body>
+</html>

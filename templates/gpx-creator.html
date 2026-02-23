@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <script>if(sessionStorage.getItem('auth')!=='ok')window.location.href='index.html';</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créateur de GPX</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        .toolbar-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        .toolbar-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 6px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .toolbar-btn:hover { background: rgba(255,255,255,0.35); }
+        .toolbar-btn:disabled { opacity: 0.4; cursor: default; }
+
+        .toolbar-btn.danger {
+            background: rgba(244,67,54,0.3);
+            border-color: rgba(244,67,54,0.5);
+        }
+        .toolbar-btn.danger:hover { background: rgba(244,67,54,0.5); }
+
+        .toolbar-btn.primary {
+            background: rgba(255,255,255,0.9);
+            color: #1e88e5;
+            font-weight: 600;
+        }
+        .toolbar-btn.primary:hover { background: white; }
+
+        .toolbar-btn.active {
+            background: rgba(255,255,255,0.5);
+            border-color: white;
+        }
+
+        .toolbar-info {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-left: auto;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 24px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .toolbar-select {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .toolbar-select option { color: #333; }
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .input-group input {
+            width: 140px;
+            padding: 4px 8px;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 12px;
+        }
+
+        .input-group input::placeholder { color: rgba(255,255,255,0.6); }
+        .input-group input:focus { outline: none; border-color: white; background: rgba(255,255,255,0.25); }
+
+        .point-number {
+            background: #1e88e5;
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            display: none;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .toolbar { padding: 4px 8px; gap: 4px; }
+            .toolbar-title { font-size: 14px; margin-right: 4px; }
+            .toolbar-btn { padding: 4px 8px; font-size: 11px; }
+            .toolbar-info { font-size: 11px; }
+            .toolbar-separator { display: none; }
+            .input-group input { width: 110px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <span class="toolbar-title">GPX Creator</span>
+        <div class="toolbar-separator"></div>
+        <select class="toolbar-select" id="routeMode" onchange="rebuildRoute()">
+            <option value="foot">A pied</option>
+            <option value="bike">Velo</option>
+        </select>
+        <button class="toolbar-btn" onclick="undoLast()" id="btnUndo" disabled>Annuler</button>
+        <button class="toolbar-btn danger" onclick="clearAll()" id="btnClear" disabled>Tout effacer</button>
+        <div class="toolbar-separator"></div>
+        <div class="input-group">
+            <label>Nom :</label>
+            <input type="text" id="activityName" placeholder="Ma sortie" />
+        </div>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn primary" onclick="downloadGPX()" id="btnDownload" disabled>Telecharger GPX</button>
+        <button class="toolbar-btn primary" onclick="uploadToStrava()" id="btnStrava" disabled>Envoyer sur Strava</button>
+        <span class="toolbar-info" id="infoBar">Cliquez sur la carte pour ajouter des points</span>
+    </div>
+
+    <div id="map"></div>
+    <div class="loading-overlay" id="loading">Calcul du parcours...</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // State
+        let waypoints = [];      // Points cliqués par l'utilisateur
+        let waypointMarkers = [];
+        let routePoints = [];    // Points détaillés de la route (sur les chemins)
+        let routeSegments = [];  // Segments de route entre chaque paire de waypoints
+        let routePolyline = null;
+        let isRouting = false;
+
+        // Map setup
+        const map = L.map('map', { zoomControl: true }).setView([46.8, 2.3], 6);
+
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap',
+            maxZoom: 19
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri',
+            maxZoom: 19
+        });
+
+        streetLayer.addTo(map);
+        L.control.layers({ 'Plan': streetLayer, 'Satellite': satelliteLayer }).addTo(map);
+
+        // Click to add waypoint
+        map.on('click', async function(e) {
+            if (isRouting) return;
+            await addWaypoint(e.latlng.lat, e.latlng.lng);
+        });
+
+        function createNumberIcon(num) {
+            return L.divIcon({
+                className: '',
+                html: `<div class="point-number">${num}</div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
+        }
+
+        function getRouteProfile() {
+            const mode = document.getElementById('routeMode').value;
+            return mode === 'bike' ? 'bike' : 'foot';
+        }
+
+        async function fetchRoute(from, to) {
+            const profile = getRouteProfile();
+            const url = `https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+                // Fallback : ligne droite
+                return [{ lat: from.lat, lng: from.lng }, { lat: to.lat, lng: to.lng }];
+            }
+
+            const coords = data.routes[0].geometry.coordinates;
+            return coords.map(c => ({ lat: c[1], lng: c[0] }));
+        }
+
+        async function addWaypoint(lat, lng) {
+            const idx = waypoints.length;
+            waypoints.push({ lat, lng });
+
+            const marker = L.marker([lat, lng], {
+                icon: createNumberIcon(idx + 1),
+                draggable: true
+            }).addTo(map);
+
+            marker.on('dragend', async function(e) {
+                const pos = e.target.getLatLng();
+                const markerIdx = waypointMarkers.indexOf(marker);
+                waypoints[markerIdx] = { lat: pos.lat, lng: pos.lng };
+                await rebuildRoute();
+            });
+
+            marker.on('contextmenu', async function() {
+                const markerIdx = waypointMarkers.indexOf(marker);
+                await removeWaypoint(markerIdx);
+            });
+
+            waypointMarkers.push(marker);
+
+            // Route vers le point précédent
+            if (waypoints.length >= 2) {
+                showLoading(true);
+                const segment = await fetchRoute(waypoints[idx - 1], waypoints[idx]);
+                routeSegments.push(segment);
+                showLoading(false);
+            }
+
+            updatePolyline();
+            updateInfo();
+            updateButtons();
+        }
+
+        async function removeWaypoint(idx) {
+            map.removeLayer(waypointMarkers[idx]);
+            waypointMarkers.splice(idx, 1);
+            waypoints.splice(idx, 1);
+
+            waypointMarkers.forEach((m, i) => m.setIcon(createNumberIcon(i + 1)));
+
+            await rebuildRoute();
+        }
+
+        async function rebuildRoute() {
+            if (isRouting) return;
+            isRouting = true;
+            routeSegments = [];
+
+            if (waypoints.length >= 2) {
+                showLoading(true);
+                for (let i = 0; i < waypoints.length - 1; i++) {
+                    const segment = await fetchRoute(waypoints[i], waypoints[i + 1]);
+                    routeSegments.push(segment);
+                }
+                showLoading(false);
+            }
+
+            updatePolyline();
+            updateInfo();
+            updateButtons();
+            isRouting = false;
+        }
+
+        function getAllRoutePoints() {
+            const allPoints = [];
+            for (let i = 0; i < routeSegments.length; i++) {
+                const segment = routeSegments[i];
+                // Eviter les doublons au point de jonction
+                const start = (i === 0) ? 0 : 1;
+                for (let j = start; j < segment.length; j++) {
+                    allPoints.push(segment[j]);
+                }
+            }
+            return allPoints;
+        }
+
+        function updatePolyline() {
+            if (routePolyline) map.removeLayer(routePolyline);
+            routePolyline = null;
+
+            const allPoints = getAllRoutePoints();
+            if (allPoints.length < 2) return;
+
+            routePolyline = L.polyline(
+                allPoints.map(p => [p.lat, p.lng]),
+                { color: '#FF5722', weight: 4, opacity: 0.8 }
+            ).addTo(map);
+        }
+
+        async function undoLast() {
+            if (waypoints.length === 0) return;
+            await removeWaypoint(waypoints.length - 1);
+        }
+
+        async function clearAll() {
+            waypointMarkers.forEach(m => map.removeLayer(m));
+            waypointMarkers = [];
+            waypoints = [];
+            routeSegments = [];
+            updatePolyline();
+            updateInfo();
+            updateButtons();
+        }
+
+        function updateButtons() {
+            document.getElementById('btnUndo').disabled = waypoints.length === 0;
+            document.getElementById('btnClear').disabled = waypoints.length === 0;
+            document.getElementById('btnDownload').disabled = waypoints.length < 2;
+            document.getElementById('btnStrava').disabled = waypoints.length < 2;
+        }
+
+        function updateInfo() {
+            const allPoints = getAllRoutePoints();
+            const dist = calculateRouteDistance(allPoints);
+            if (waypoints.length === 0) {
+                document.getElementById('infoBar').textContent = 'Cliquez sur la carte pour tracer un parcours';
+            } else {
+                document.getElementById('infoBar').textContent = `${waypoints.length} points | ${dist.toFixed(2)} km`;
+            }
+        }
+
+        function calculateRouteDistance(points) {
+            let total = 0;
+            for (let i = 1; i < points.length; i++) {
+                total += haversine(points[i - 1], points[i]);
+            }
+            return total;
+        }
+
+        function haversine(p1, p2) {
+            const R = 6371;
+            const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+            const dLon = (p2.lng - p1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                      Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function downloadGPX() {
+            const allPoints = getAllRoutePoints();
+            if (allPoints.length < 2) return;
+
+            const name = document.getElementById('activityName').value || 'Mon parcours';
+            const now = new Date().toISOString();
+            const mode = document.getElementById('routeMode').value;
+            const speed = mode === 'bike' ? 20 : 10; // km/h
+
+            // Generate timestamps
+            const timestamps = [new Date()];
+            for (let i = 1; i < allPoints.length; i++) {
+                const dist = haversine(allPoints[i - 1], allPoints[i]);
+                const seconds = Math.max(1, Math.round(dist / speed * 3600));
+                timestamps.push(new Date(timestamps[i - 1].getTime() + seconds * 1000));
+            }
+
+            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GPX Creator"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>${escapeXml(name)}</name>
+    <time>${now}</time>
+  </metadata>
+  <trk>
+    <name>${escapeXml(name)}</name>
+    <trkseg>
+`;
+
+            allPoints.forEach((p, i) => {
+                gpx += `      <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lng.toFixed(7)}">
+        <time>${timestamps[i].toISOString()}</time>
+      </trkpt>\n`;
+            });
+
+            gpx += `    </trkseg>
+  </trk>
+</gpx>`;
+
+            const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${name.replace(/[^a-zA-Z0-9]/g, '_')}.gpx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeXml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // === STRAVA API ===
+        const STRAVA_CLIENT_ID = '127701';
+        const STRAVA_CLIENT_SECRET = 'ec687bc2b341b7f3c481c9a31a31851d11fbe088';
+        const STRAVA_REFRESH_TOKEN = '062ab6361f0a4ae92b89c7958d34a920d92b8742';
+
+        async function getStravaAccessToken() {
+            const response = await fetch('https://www.strava.com/oauth/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id: STRAVA_CLIENT_ID,
+                    client_secret: STRAVA_CLIENT_SECRET,
+                    refresh_token: STRAVA_REFRESH_TOKEN,
+                    grant_type: 'refresh_token'
+                })
+            });
+            const data = await response.json();
+            if (!data.access_token) throw new Error('Impossible de se connecter a Strava');
+            return data.access_token;
+        }
+
+        function buildGPXBlob() {
+            const allPoints = getAllRoutePoints();
+            if (allPoints.length < 2) return null;
+
+            const name = document.getElementById('activityName').value || 'Mon parcours';
+            const now = new Date().toISOString();
+            const mode = document.getElementById('routeMode').value;
+            const speed = mode === 'bike' ? 20 : 10;
+
+            const timestamps = [new Date()];
+            for (let i = 1; i < allPoints.length; i++) {
+                const dist = haversine(allPoints[i - 1], allPoints[i]);
+                const seconds = Math.max(1, Math.round(dist / speed * 3600));
+                timestamps.push(new Date(timestamps[i - 1].getTime() + seconds * 1000));
+            }
+
+            let gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GPX Creator"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata><name>${escapeXml(name)}</name><time>${now}</time></metadata>
+  <trk><name>${escapeXml(name)}</name><trkseg>
+`;
+            allPoints.forEach((p, i) => {
+                gpx += `      <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lng.toFixed(7)}"><time>${timestamps[i].toISOString()}</time></trkpt>\n`;
+            });
+            gpx += `  </trkseg></trk>\n</gpx>`;
+
+            return new Blob([gpx], { type: 'application/gpx+xml' });
+        }
+
+        async function uploadToStrava() {
+            const allPoints = getAllRoutePoints();
+            if (allPoints.length < 2) return;
+
+            const name = document.getElementById('activityName').value || 'Mon parcours';
+            const mode = document.getElementById('routeMode').value;
+            const activityType = mode === 'bike' ? 'ride' : 'run';
+
+            const btn = document.getElementById('btnStrava');
+            btn.disabled = true;
+            btn.textContent = 'Envoi...';
+
+            try {
+                const token = await getStravaAccessToken();
+                const gpxBlob = buildGPXBlob();
+
+                const formData = new FormData();
+                formData.append('file', gpxBlob, `${name}.gpx`);
+                formData.append('name', name);
+                formData.append('data_type', 'gpx');
+                formData.append('activity_type', activityType);
+
+                const response = await fetch('https://www.strava.com/api/v3/uploads', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                btn.textContent = 'Envoye !';
+                setTimeout(() => {
+                    btn.textContent = 'Envoyer sur Strava';
+                    btn.disabled = false;
+                }, 3000);
+
+                alert('GPX envoye sur Strava ! Il apparaitra dans tes activites dans quelques secondes.');
+            } catch (error) {
+                console.error('Erreur Strava:', error);
+                alert('Erreur: ' + error.message);
+                btn.textContent = 'Envoyer sur Strava';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

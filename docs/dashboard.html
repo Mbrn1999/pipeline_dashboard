@@ -1,0 +1,3952 @@
+
+        
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Viewer - Mes Activités 2026</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+            padding: 10px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 44px;
+        }
+
+        .header-left {
+            position: absolute;
+            left: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-right {
+            position: absolute;
+            right: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .month-nav {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .month-nav-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .month-nav-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.05);
+        }
+
+        .month-title {
+            font-size: 20px;
+            font-weight: 600;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .back-to-month-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-to-month-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        .add-annotation-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .add-annotation-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* VUE MOIS */
+        #monthView {
+            padding: 10px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .month-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+            flex: 1;
+        }
+
+        .weekly-km-chart-container {
+            height: 120px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .calendar-day-header {
+            background: #e3f2fd;
+            padding: 6px;
+            text-align: center;
+            font-weight: 600;
+            color: #1976d2;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .calendar-day {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 120px;
+            border-left: 4px solid transparent;
+        }
+
+        .calendar-day.week-bloc {
+            border-left-color: #a4c2f4;
+        }
+
+        .calendar-day.week-recuperation {
+            border-left-color: #ffda66;
+        }
+
+        .calendar-day.week-course {
+            border-left-color: #ffda66;
+        }
+
+        .calendar-day:hover {
+            border-color: #1e88e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.4;
+        }
+
+        .calendar-day.today {
+            border-color: #ff9800;
+            border-width: 3px;
+            background: #fff3e0;
+        }
+
+        .day-number {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .day-activities {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .day-activity {
+            font-size: 10px;
+            padding: 2px 4px;
+            background: #FBE9E7;
+            color: #D84315;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .day-activity.run {
+            background: #FBE9E7;
+            color: #D84315;
+        }
+
+        .day-activity.ride {
+            background: #FBE9E7;
+            color: #D84315;
+        }
+
+        .day-activity.ski {
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+
+        .day-activity.planned {
+            background: #fff8e1;
+            color: #e65100;
+            border-left: 2px solid #ffa726;
+        }
+
+        .day-annotations {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-top: auto;
+            overflow: hidden;
+        }
+
+        .day-annotation {
+            font-size: 9px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: 400;
+            display: inline-block;
+            max-width: fit-content;
+            opacity: 0.7;
+        }
+
+        .day-annotation.week {
+            background: #f5f5f5;
+            color: #757575;
+        }
+
+        .day-annotation.day {
+            background: #f5f5f5;
+            color: #757575;
+        }
+
+        .day-annotation.time {
+            background: #f5f5f5;
+            color: #757575;
+        }
+        
+
+        /* VUE SEMAINE */
+        #weekView {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .stat-unit {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-left: 4px;
+        }
+
+        .week-view-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        #week-view {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .day-container {
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+        }
+
+        .day-header {
+            background: #e8e8e8;
+            padding: 10px 20px;
+            font-weight: 600;
+            color: #424242;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 1px solid #d0d0d0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .day-header:hover {
+            background: #e0e0e0;
+        }
+
+        .day-header-date {
+            flex-shrink: 0;
+        }
+
+        .day-header-annotations {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .day-header-annotation {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(0,0,0,0.08);
+            color: #616161;
+            font-weight: 400;
+        }
+
+        .day-content {
+            padding: 0;
+        }
+
+        .activity-item {
+            padding: 10px 15px;
+            margin: 6px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            border-radius: 8px;
+            max-width: 95%;
+        }
+
+        .activity-item:hover {
+            background: #f5f5f5;
+            transform: translateX(2px);
+        }
+
+        .activity-item.active {
+            background: #e8e8e8;
+            border-left-color: #424242;
+        }
+
+        .planned-training-item {
+            padding: 10px 15px;
+            margin: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid transparent;
+            max-width: 95%;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .planned-training-item:hover {
+            background: #f5f5f5;
+            transform: translateX(2px);
+        }
+
+        .planned-training-item.active {
+            background: #fff8e1;
+            border-left-color: #ffa726;
+        }
+
+        .activity-icon {
+            font-size: 24px;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .activity-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .activity-stats {
+            display: flex;
+            gap: 10px;
+            font-size: 11px;
+            color: #666;
+        }
+
+        .activity-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .activity-time {
+            color: #999;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .chart-container {
+            height: 200px;
+            flex-shrink: 0;
+            background: white;
+            padding: 15px 15px 0 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .chart-container.segment-mode canvas {
+            cursor: crosshair;
+        }
+
+        .no-data {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #999;
+            font-size: 16px;
+        }
+
+        /* Laps */
+        .laps-container {
+            flex-shrink: 0;
+            background: white;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: visible;
+        }
+
+        .laps-list {
+            display: flex;
+            gap: 3px;
+            min-width: 100%;
+            align-items: flex-end;
+            height: 60px;
+        }
+
+        .lap-item {
+            padding: 0;
+            min-height: 4px;
+            border: 1px solid #999;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lap-item:hover {
+            border-color: #1e88e5;
+            background: #e3f2fd;
+        }
+
+        .lap-item {
+            position: relative;
+        }
+
+        .lap-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 100;
+            pointer-events: none;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .lap-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #333;
+        }
+
+        .lap-item:hover .lap-tooltip {
+            display: block;
+        }
+
+        .lap-item.active {
+            border-color: #1e88e5;
+            background: #1e88e5;
+            color: white;
+        }
+
+        /* Week annotations */
+        .week-annotations-container {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 20px;
+        }
+
+        .week-annotation-item {
+            padding: 5px 10px;
+            margin: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.4;
+            background: #f5f5f5;
+            color: #757575;
+            border-left: 2px solid #bdbdbd;
+            max-width: 95%;
+            opacity: 0.85;
+        }
+
+        .week-annotation-item.week {
+            background: #f5f5f5;
+            color: #757575;
+            border-left: 2px solid #bdbdbd;
+        }
+
+        .week-annotation-item.day {
+            background: #f5f5f5;
+            color: #757575;
+            border-left: 2px solid #bdbdbd;
+        }
+
+        .week-annotation-item.time {
+            background: #f5f5f5;
+            color: #757575;
+            border-left: 2px solid #bdbdbd;
+        }
+
+        /* Modal d'annotation */
+        .annotation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .annotation-modal.show {
+            display: flex;
+        }
+
+        .annotation-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #1e88e5;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .modal-btn-submit {
+            background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+            color: white;
+        }
+
+        .modal-btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.4);
+        }
+
+        /* Clear cache button */
+        .clear-cache-btn {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .clear-cache-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        /* Menu ajout (+) */
+        .add-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 6px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            overflow: hidden;
+            z-index: 1000;
+            min-width: 160px;
+        }
+
+        .add-menu-item {
+            padding: 10px 16px;
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .add-menu-item:hover {
+            background: #f0f0f0;
+        }
+
+        .week-type-option {
+            padding: 6px 16px;
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .week-type-option:has(input:checked) {
+            border-color: #1e88e5;
+            background: #e3f2fd;
+            color: #1e88e5;
+        }
+
+        .week-type-option input {
+            display: none;
+        }
+
+        .week-type-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .week-type-badge.bloc {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .week-type-badge.recuperation {
+            background: #fff8e1;
+            color: #b8960a;
+        }
+
+        .week-type-badge.course {
+            background: #fff8e1;
+            color: #b8960a;
+        }
+
+        .training-week-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+
+        .training-week-row:nth-child(odd) {
+            background: #f5f5f5;
+        }
+
+        .training-week-day {
+            font-weight: 600;
+            font-size: 12px;
+            width: 32px;
+            flex-shrink: 0;
+            color: #555;
+        }
+
+        .training-week-row select,
+        .training-week-row input {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px 6px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .training-week-row select:focus,
+        .training-week-row input:focus {
+            border-color: #1e88e5;
+        }
+
+        .training-week-sport { width: 50px; text-align: center; }
+        .training-week-km { width: 55px; }
+        .training-week-time { width: 55px; }
+        .training-week-seance { flex: 1; min-width: 0; }
+
+        .training-week-existing {
+            font-size: 10px;
+            color: #999;
+            margin-left: 4px;
+            font-style: italic;
+        }
+
+        /* Planning semaines modal */
+        .planning-week-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .planning-week-row:nth-child(odd) { background: #f5f5f5; }
+        .planning-week-label {
+            font-size: 12px;
+            color: #555;
+            width: 110px;
+            flex-shrink: 0;
+        }
+        .planning-week-btns {
+            display: flex;
+            gap: 6px;
+        }
+        .planning-type-btn {
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1.5px solid #ddd;
+            background: white;
+            font-size: 11px;
+            cursor: pointer;
+            color: #555;
+            transition: all 0.15s;
+        }
+        .planning-type-btn.active-bloc { background: #a4c2f4; border-color: #a4c2f4; color: #1a237e; font-weight: 600; }
+        .planning-type-btn.active-recuperation { background: #ffda66; border-color: #ffda66; color: #7c5a00; font-weight: 600; }
+        .planning-type-btn.active-course { background: #ef9a9a; border-color: #ef9a9a; color: #7f0000; font-weight: 600; }
+
+        /* Training info dans l'activité */
+        .activity-training {
+            font-size: 11px;
+            color: #1e88e5;
+            margin-top: 4px;
+            padding: 3px 6px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+
+        /* ===== VERSION MOBILE ===== */
+        @media (max-width: 768px) {
+            /* Header compact mobile */
+            .header { padding: 3px 6px; }
+            .header-row {
+                min-height: 28px;
+                position: static;
+                justify-content: space-between;
+            }
+            .header-left { position: static; }
+            .header-right { position: static; }
+            .month-nav { gap: 4px; padding: 2px 0; flex: 1; }
+            .month-nav-btn {
+                padding: 4px 8px;
+                font-size: 14px;
+                border-width: 1px;
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                max-width: 32px;
+            }
+            .month-title { font-size: 12px; min-width: auto; }
+            .back-to-month-btn { padding: 4px 8px; font-size: 11px; border-width: 1px; }
+            .hide-mobile { display: none; }
+            .clear-cache-btn { padding: 4px 10px; font-size: 11px; }
+            .add-annotation-btn { width: 28px; height: 28px; font-size: 16px; }
+            .week-type-badge { font-size: 10px; padding: 2px 6px; margin-left: 2px; }
+
+            /* Calendrier mois compact */
+            #monthView { padding: 4px; }
+            .month-calendar { gap: 2px; margin-top: 4px; }
+            .weekly-km-chart-container { height: 80px; margin-top: 4px; padding: 4px 6px; }
+            .calendar-day-header { padding: 3px; font-size: 10px; border-radius: 4px; }
+            .calendar-day {
+                min-height: 60px;
+                padding: 2px 3px;
+                border-radius: 4px;
+                border-width: 1px;
+                border-left-width: 3px;
+            }
+            .calendar-day:hover { transform: none; box-shadow: none; }
+            .day-number { font-size: 11px; margin-bottom: 2px; }
+            .day-activity { font-size: 8px; padding: 1px 2px; gap: 1px; border-radius: 3px; }
+            .day-annotation { font-size: 7px; padding: 1px 3px; }
+
+            /* Vue semaine : empilée verticalement */
+            .container { flex-direction: column; }
+            .left-panel {
+                width: 100%;
+                max-height: 180px;
+                overflow-y: auto;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            .day-header { padding: 6px 10px; font-size: 12px; gap: 6px; }
+            .activity-item { padding: 6px 8px; margin: 3px 6px; gap: 6px; }
+            .activity-item:hover { transform: none; }
+            .planned-training-item { padding: 6px 8px; margin: 3px 6px; gap: 6px; }
+            .activity-icon { font-size: 18px; min-width: 24px; }
+            .activity-name { font-size: 12px; margin-bottom: 2px; }
+            .activity-stats { gap: 6px; font-size: 10px; }
+
+            /* Carte et graphique */
+            .main-content { overflow: visible; }
+            .map-container { height: 250px; flex: none; }
+            .chart-container { height: 150px; padding: 8px 8px 0 8px; }
+            .laps-list { height: 45px; overflow-x: auto; }
+
+            /* Modales */
+            .annotation-modal-content {
+                padding: 16px;
+                width: 95%;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            .modal-header { font-size: 16px; margin-bottom: 12px; }
+            .form-group { margin-bottom: 12px; }
+
+            /* Formulaire entrainement */
+            .training-week-row { gap: 3px; padding: 4px; }
+            .training-week-sport { width: 40px; font-size: 11px; }
+            .training-week-km { width: 45px; font-size: 11px; }
+            .training-week-time { width: 45px; font-size: 11px; }
+            .training-week-seance { font-size: 11px; }
+        }
+    </style>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="auth.js"></script>
+</head>
+<body>
+    <div class="header">
+        <div class="header-row">
+            <div class="header-left">
+                <!-- Mois : bouton cache / Semaine : bouton retour -->
+                <a href="settings.html" class="clear-cache-btn" style="text-decoration:none;" title="Parametres">⚙️</a>
+                <button id="btnBackToMonth" class="back-to-month-btn" style="display: none;" onclick="showMonthView()">← Retour au mois</button>
+            </div>
+
+            <!-- Mois : navigation -->
+            <div id="monthViewHeader" class="month-nav">
+                <button class="month-nav-btn" onclick="previousMonth()">← Mois précédent</button>
+                <div class="month-title" id="monthTitle">Février 2026</div>
+                <button class="month-nav-btn" onclick="nextMonth()">Mois suivant →</button>
+            </div>
+
+            <!-- Semaine : navigation -->
+            <div id="weekViewHeader" style="display: none;" class="month-nav">
+                <button class="month-nav-btn" onclick="previousWeek()">← Semaine préc.</button>
+                <div class="month-title" id="weekTitle">Semaine en cours</div><span id="weekTypeBadge" class="week-type-badge" style="display:none;"></span>
+                <button class="month-nav-btn" onclick="nextWeek()">Semaine suiv. →</button>
+            </div>
+
+            <div class="header-right">
+                <button class="add-annotation-btn" onclick="toggleAddMenu()" title="Ajouter">+</button>
+                <div id="addMenu" class="add-menu" style="display: none;">
+                    <div class="add-menu-item" onclick="openAnnotationModal(); hideAddMenu();">Annotation</div>
+                    <div class="add-menu-item" onclick="openTrainingModal(); hideAddMenu();">Entrainement</div>
+                    <div class="add-menu-item" onclick="openPlanningModal(); hideAddMenu();">Types de semaines</div>
+                    <div class="add-menu-item" onclick="window.open('gpx-creator.html','_blank'); hideAddMenu();">Créer un GPX</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VUE MOIS -->
+    <div id="monthView">
+        <div class="month-calendar" id="monthCalendar">
+            <!-- Généré dynamiquement par JavaScript -->
+        </div>
+        <div class="weekly-km-chart-container">
+            <canvas id="weeklyKmChart"></canvas>
+        </div>
+    </div>
+
+    <!-- VUE SEMAINE -->
+    <div id="weekView">
+        <div class="container">
+            <div class="left-panel">
+                <div class="week-view-container">
+                    <div id="week-view">
+                        <div class="no-data">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
+                <div class="chart-container" style="position: relative;">
+                    <canvas id="elevationChart"></canvas>
+                    <button id="segmentBtn" onclick="toggleSegmentMode()" title="Créer un segment virtuel" style="position:absolute;top:4px;right:4px;padding:2px 8px;font-size:11px;border:1.5px solid #1e88e5;border-radius:10px;background:white;color:#1e88e5;cursor:pointer;z-index:10;">✂ Segment</button>
+                    <div id="segmentResult" style="display:none;position:absolute;top:4px;left:50%;transform:translateX(-50%);background:rgba(30,136,229,0.92);color:white;border-radius:8px;padding:3px 12px;font-size:12px;font-weight:600;white-space:nowrap;z-index:10;"></div>
+                </div>
+                <div class="laps-container" id="lapsContainer" style="display: none;">
+                    <div class="laps-list" id="lapsList"></div>
+                    <div style="text-align: center; font-size: 11px; color: #666; padding: 2px 0 4px;">Distance (km)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'annotation -->
+    <div id="annotationModal" class="annotation-modal">
+        <div class="annotation-modal-content">
+            <div class="modal-header">📝 Ajouter une annotation</div>
+            
+            <div class="form-group">
+                <label for="annotationType" class="form-label">Type d'annotation</label>
+                <select id="annotationType" class="form-select" onchange="updateDateOptions()">
+                    <option value="period">Période (plusieurs jours)</option>
+                    <option value="day">Jour</option>
+                    <option value="time">Plage horaire</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="startDateGroup">
+                <label for="annotationStartDate" class="form-label">Date de début</label>
+                <input type="date" id="annotationStartDate" class="form-select" />
+            </div>
+
+            <div class="form-group" id="endDateGroup" style="display: none;">
+                <label for="annotationEndDate" class="form-label">Date de fin</label>
+                <input type="date" id="annotationEndDate" class="form-select" />
+            </div>
+
+            <div class="form-group" id="timeGroup" style="display: none;">
+                <label for="annotationTime" class="form-label">Heure</label>
+                <input type="time" id="annotationTime" class="form-select" />
+            </div>
+
+            <div class="form-group">
+                <label for="annotationText" class="form-label">Texte de l'annotation</label>
+                <textarea id="annotationText" class="form-textarea" placeholder="Votre annotation..."></textarea>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" onclick="closeAnnotationModal()">Annuler</button>
+                <button class="modal-btn modal-btn-submit" onclick="saveAnnotation()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'entrainement -->
+    <div id="trainingModal" class="annotation-modal">
+        <div class="annotation-modal-content" style="max-width: 700px;">
+            <div class="modal-header" id="trainingModalHeader">Planifier la semaine</div>
+
+            <!-- Navigation semaine -->
+            <div id="trainingWeekNav" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px;">
+                <button onclick="trainingWeekPrev()" style="background: none; border: none; font-size: 20px; cursor: pointer;">◀</button>
+                <span id="trainingWeekLabel" style="font-weight: 600; font-size: 14px;"></span>
+                <button onclick="trainingWeekNext()" style="background: none; border: none; font-size: 20px; cursor: pointer;">▶</button>
+            </div>
+
+            <!-- Type de semaine -->
+            <div id="trainingWeekType" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 10px;">
+                <label class="week-type-option">
+                    <input type="radio" name="weekType" value="bloc" /> Bloc
+                </label>
+                <label class="week-type-option">
+                    <input type="radio" name="weekType" value="recuperation" /> Récupération
+                </label>
+                <label class="week-type-option">
+                    <input type="radio" name="weekType" value="course" /> Course
+                </label>
+            </div>
+
+            <!-- Grille semaine -->
+            <div id="trainingWeekGrid" style="display: flex; flex-direction: column; gap: 4px;">
+            </div>
+
+            <!-- Mode édition simple (caché par défaut) -->
+            <div id="trainingEditFields" style="display: none;">
+                <div class="form-group">
+                    <label for="trainingDate" class="form-label">Date</label>
+                    <input type="date" id="trainingDate" class="form-select" onchange="updateTrainingActivitySelector()" />
+                </div>
+                <div class="form-group" id="trainingActivityGroup" style="display:none;">
+                    <label for="trainingActivity" class="form-label">Activité</label>
+                    <select id="trainingActivity" class="form-select"></select>
+                </div>
+                <div id="trainingPlannedFields">
+                    <div class="form-group">
+                        <select id="trainingSport" class="form-select" style="font-size: 18px; padding: 10px; text-align: center;">
+                            <option value="Run">🏃 Course à pied</option>
+                            <option value="Ride">🚴 Vélo</option>
+                            <option value="NordicSki">⛷️ Ski</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="trainingKm" class="form-label">Distance (km)</label>
+                            <input type="number" id="trainingKm" class="form-select" placeholder="km" step="0.1" min="0" />
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="trainingTime" class="form-label">Temps (min)</label>
+                            <input type="number" id="trainingTime" class="form-select" placeholder="min" step="1" min="0" />
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="trainingText" class="form-label">Séance</label>
+                    <input type="text" id="trainingText" class="form-select" placeholder="Ex: 10x400m R1'30..." />
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" onclick="closeTrainingModal()">Annuler</button>
+                <button class="modal-btn modal-btn-submit" id="trainingSubmitBtn" onclick="saveTraining()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal planning semaines -->
+    <div id="planningModal" class="annotation-modal">
+        <div class="annotation-modal-content" style="max-width: 500px;">
+            <div class="modal-header">Planning des semaines</div>
+            <div id="planningWeeksList" style="display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow-y: auto; margin-bottom: 12px;"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" onclick="closePlanningModal()">Annuler</button>
+                <button class="modal-btn modal-btn-submit" onclick="savePlanning()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        console.log('=== DEBUT DU SCRIPT ===');
+
+        // Initialiser Supabase via auth.js
+        initSupabase();
+        console.log('✓ Supabase client créé');
+
+        function sportIcon(sportType) {
+            if (sportType === 'Ride') return '🚴';
+            if (sportType === 'NordicSki' || sportType === 'AlpineSki' || sportType === 'BackcountrySki') return '⛷️';
+            return '🏃';
+        }
+
+        function sportLabel(sportType) {
+            if (sportType === 'Ride') return 'Vélo';
+            if (sportType === 'NordicSki' || sportType === 'AlpineSki' || sportType === 'BackcountrySki') return 'Ski';
+            return 'Course à pied';
+        }
+
+        function sportClass(sportType) {
+            if (sportType === 'Ride') return 'ride';
+            if (sportType === 'NordicSki' || sportType === 'AlpineSki' || sportType === 'BackcountrySki') return 'ski';
+            return 'run';
+        }
+
+        // Tooltip qui suit le curseur
+        Chart.Tooltip.positioners.cursor = function(elements, eventPosition) {
+            return { x: eventPosition.x, y: eventPosition.y };
+        };
+
+        // Variables globales
+        let activities = [];
+        let annotations = [];
+        let trainings = [];
+        let trainingWeeks = [];
+        let map = null;
+        let chart = null;
+        let weeklyKmChart = null;
+        let currentActivityId = null;
+        let currentPolyline = null;
+        let currentMarkers = [];
+        let hoverMarker = null;
+        let currentStreams = [];
+        let currentLaps = [];
+        let selectedLapIndex = null;
+        let lapHighlightPolyline = null;
+        let lapHoverPolyline = null;
+        let hoveredLapRange = null;
+        let streamsCache = new Map();
+        let lapsCache = new Map();
+        let currentView = 'month'; // 'month' ou 'week'
+        let currentMonth = new Date(2026, 1, 1); // Février 2026
+        let selectedWeekStart = null;
+        let preselectedActivityId = null; // Pour mémoriser l'activité à sélectionner
+
+        // === GESTION DU CACHE ===
+        function clearCache() {
+            if (confirm('Voulez-vous vider le cache GPS ? Les traces seront rechargées depuis le serveur.')) {
+                localStorage.clear();
+                streamsCache.clear();
+                console.log('✓ Cache vidé');
+                alert('Cache vidé ! Rechargez la page pour voir les changements.');
+            }
+        }
+
+        function saveCacheToStorage() {
+            try {
+                // Limiter le cache aux 20 activites les plus recentes
+                const keys = Array.from(streamsCache.keys());
+                if (keys.length > 20) {
+                    const toRemove = keys.slice(0, keys.length - 20);
+                    toRemove.forEach(k => streamsCache.delete(k));
+                }
+                const cacheObj = {};
+                streamsCache.forEach((value, key) => {
+                    cacheObj[key] = value;
+                });
+                localStorage.setItem('streamsCache', JSON.stringify(cacheObj));
+                console.log(`✓ Cache sauvegardé (${streamsCache.size} activités)`);
+            } catch (e) {
+                // Si toujours trop gros, vider le cache localStorage
+                localStorage.removeItem('streamsCache');
+                console.warn('⚠ Cache trop gros, nettoyé');
+            }
+        }
+
+        function loadCacheFromStorage() {
+            try {
+                const cached = localStorage.getItem('streamsCache');
+                if (cached) {
+                    const cacheObj = JSON.parse(cached);
+                    Object.keys(cacheObj).forEach(key => {
+                        streamsCache.set(parseInt(key), cacheObj[key]);
+                    });
+                    console.log(`✓ Cache chargé (${streamsCache.size} activités)`);
+                }
+            } catch (e) {
+                console.warn('⚠ Impossible de charger le cache:', e);
+            }
+        }
+
+        // === NAVIGATION VUE MOIS / SEMAINE ===
+        function showMonthView() {
+            currentView = 'month';
+            preselectedActivityId = null;
+            document.getElementById('monthView').style.display = 'block';
+            document.getElementById('weekView').style.display = 'none';
+            document.getElementById('monthViewHeader').style.display = 'flex';
+            document.getElementById('weekViewHeader').style.display = 'none';
+            document.getElementById('btnBackToMonth').style.display = 'none';
+            loadMonthView();
+        }
+
+        function showWeekView(weekStartDate, activityIdToSelect = null) {
+            currentView = 'week';
+            selectedWeekStart = weekStartDate;
+            preselectedActivityId = activityIdToSelect; // Mémoriser l'activité à sélectionner
+            
+            document.getElementById('monthView').style.display = 'none';
+            document.getElementById('weekView').style.display = 'flex';
+            document.getElementById('monthViewHeader').style.display = 'none';
+            document.getElementById('weekViewHeader').style.display = 'flex';
+            document.getElementById('btnBackToMonth').style.display = 'block';
+            
+            // Initialiser la carte si nécessaire, puis forcer le recalcul des dimensions
+            if (!map) {
+                initMap();
+            }
+            setTimeout(() => {
+                if (map) map.invalidateSize();
+            }, 50);
+
+            loadWeekView(weekStartDate);
+        }
+
+        // === NAVIGATION MOIS ===
+        function previousMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            loadMonthView();
+        }
+
+        function nextMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            loadMonthView();
+        }
+
+        function previousWeek() {
+            const prev = new Date(selectedWeekStart);
+            prev.setDate(prev.getDate() - 7);
+            selectedWeekStart = prev;
+            loadWeekView(prev);
+        }
+
+        function nextWeek() {
+            const next = new Date(selectedWeekStart);
+            next.setDate(next.getDate() + 7);
+            selectedWeekStart = next;
+            loadWeekView(next);
+        }
+
+        function updateMonthTitle() {
+            const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                              'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+            const title = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+            document.getElementById('monthTitle').textContent = title;
+        }
+
+        // === CHARGEMENT VUE MOIS ===
+        function loadMonthView() {
+            updateMonthTitle();
+            
+            const calendar = document.getElementById('monthCalendar');
+            calendar.innerHTML = '';
+
+            // Headers des jours
+            const dayHeaders = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                calendar.appendChild(header);
+            });
+
+            // Calculer premier et dernier jour du mois
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+            
+            // Ajuster pour commencer un lundi
+            const startDay = new Date(firstDay);
+            const dayOfWeek = firstDay.getDay();
+            const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            startDay.setDate(startDay.getDate() - daysToSubtract);
+
+            // Calculer le nombre de cellules nécessaires
+            const totalDays = Math.ceil((lastDay.getDate() + daysToSubtract) / 7) * 7;
+            const weekRows = totalDays / 7;
+            calendar.style.gridTemplateRows = `auto ${Array(weekRows).fill('1fr').join(' ')}`;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < totalDays; i++) {
+                const currentDate = new Date(startDay);
+                currentDate.setDate(currentDate.getDate() + i);
+                
+                const dayElement = createDayElement(currentDate, currentMonth, today);
+                calendar.appendChild(dayElement);
+            }
+
+            displayWeeklyKmChart(startDay, totalDays);
+        }
+
+        function displayWeeklyKmChart(calendarStart, totalDays) {
+            const monthNames = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'];
+
+            // Semaines du mois affiché (pour la surbrillance)
+            const calendarEnd = new Date(calendarStart);
+            calendarEnd.setDate(calendarEnd.getDate() + totalDays - 1);
+
+            // Partir d'il y a 6 mois (lundi)
+            const now = new Date();
+            const oneYearAgo = new Date(now);
+            oneYearAgo.setMonth(oneYearAgo.getMonth() - 6);
+            const dayOfWeek = oneYearAgo.getDay();
+            oneYearAgo.setDate(oneYearAgo.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+            // Pré-indexer les km de course par date pour éviter les appels répétés
+            const runKmByDate = {};
+            activities.forEach(a => {
+                if (a.sport_type === 'Run') {
+                    const dateStr = a.start_date_local.substring(0, 10);
+                    runKmByDate[dateStr] = (runKmByDate[dateStr] || 0) + a.distance / 1000;
+                }
+            });
+
+            // Pré-indexer les km planifiés par date
+            const plannedKmByDate = {};
+            trainings.forEach(t => {
+                if (t.planned_distance && t.sport_type === 'Run') {
+                    const dateStr = t.date;
+                    plannedKmByDate[dateStr] = (plannedKmByDate[dateStr] || 0) + t.planned_distance;
+                }
+            });
+
+            const labels = [];
+            const data = [];
+            const plannedData = [];
+            const bgColors = [];
+            const borderColors = [];
+
+            const weekStart = new Date(oneYearAgo);
+            // Aller jusqu'à la fin des semaines planifiées (max 2 mois dans le futur)
+            const chartEnd = new Date(now);
+            chartEnd.setMonth(chartEnd.getMonth() + 2);
+            while (weekStart <= chartEnd) {
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+
+                labels.push(`${weekStart.getDate()}-${weekEnd.getDate()} ${monthNames[weekEnd.getMonth()]}`);
+
+                let totalKm = 0;
+                let totalPlannedKm = 0;
+                for (let d = 0; d < 7; d++) {
+                    const day = new Date(weekStart);
+                    day.setDate(day.getDate() + d);
+                    const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+                    totalKm += runKmByDate[dateStr] || 0;
+                    totalPlannedKm += plannedKmByDate[dateStr] || 0;
+                }
+                data.push(Math.round(totalKm * 10) / 10);
+                plannedData.push(Math.round(totalPlannedKm * 10) / 10);
+
+                // Couleur selon le type de semaine
+                const wType = getWeekType(getWeekStart(weekStart));
+                const isCurrentMonth = weekStart >= calendarStart && weekStart <= calendarEnd;
+                const alpha = isCurrentMonth ? 0.8 : 0.3;
+                const alphaB = isCurrentMonth ? 1 : 0.45;
+                if (wType === 'bloc') {
+                    bgColors.push(`rgba(164, 194, 244, ${alpha})`);
+                    borderColors.push(`rgba(164, 194, 244, ${alphaB})`);
+                } else if (wType === 'recuperation' || wType === 'course') {
+                    bgColors.push(`rgba(255, 218, 102, ${alpha})`);
+                    borderColors.push(`rgba(255, 218, 102, ${alphaB})`);
+                } else {
+                    bgColors.push(`rgba(30, 136, 229, ${alpha})`);
+                    borderColors.push(`rgba(30, 136, 229, ${alphaB})`);
+                }
+
+                weekStart.setDate(weekStart.getDate() + 7);
+            }
+
+            if (weeklyKmChart) weeklyKmChart.destroy();
+
+            const ctx = document.getElementById('weeklyKmChart').getContext('2d');
+            weeklyKmChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Réalisé',
+                        data,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1,
+                        borderRadius: 0,
+                        stack: 'km'
+                    }, {
+                        label: 'Planifié',
+                        data: plannedData,
+                        backgroundColor: 'rgba(255, 152, 0, 0.35)',
+                        borderColor: 'rgba(255, 152, 0, 0.6)',
+                        borderWidth: 1,
+                        borderRadius: 3,
+                        stack: 'km'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            position: 'cursor',
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.raw === 0) return null;
+                                    return `${ctx.dataset.label}: ${ctx.raw} km`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: (() => { const m = Math.max(...data.map((v, i) => v + plannedData[i])); return m < 10 ? 1 : m < 20 ? 2 : 5; })(),
+                                callback: v => `${v}`,
+                                font: { size: 10 }
+                            },
+                            grid: { color: '#f0f0f0' }
+                        },
+                        x: {
+                            stacked: true,
+                            ticks: {
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 12,
+                                font: { size: 10 }
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'barLabels',
+                    afterDatasetsDraw(chart) {
+                        const { ctx, chartArea } = chart;
+                        const meta0 = chart.getDatasetMeta(0);
+                        const meta1 = chart.getDatasetMeta(1);
+                        ctx.save();
+                        ctx.font = 'bold 8px -apple-system, BlinkMacSystemFont, sans-serif';
+                        ctx.textAlign = 'center';
+                        meta0.data.forEach((bar, i) => {
+                            const realise = chart.data.datasets[0].data[i];
+                            const planifie = chart.data.datasets[1].data[i];
+                            const total = realise + planifie;
+                            if (total > 0) {
+                                // Prendre le haut de la barre la plus haute (planifié si > 0, sinon réalisé)
+                                const topBar = planifie > 0 ? meta1.data[i] : bar;
+                                const y = topBar.y - 4;
+                                if (y < chartArea.top + 10) {
+                                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                                    ctx.textBaseline = 'top';
+                                    ctx.fillText(Math.round(total), bar.x, topBar.y + 4);
+                                } else {
+                                    ctx.fillStyle = '#555';
+                                    ctx.textBaseline = 'bottom';
+                                    ctx.fillText(Math.round(total), bar.x, y);
+                                }
+                            }
+                        });
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function createDayElement(date, monthDate, today) {
+            const div = document.createElement('div');
+            div.className = 'calendar-day';
+
+            // Vérifier si le jour appartient au mois courant
+            const isCurrentMonth = date.getMonth() === monthDate.getMonth();
+            if (!isCurrentMonth) {
+                div.classList.add('other-month');
+            }
+
+            // Vérifier si c'est aujourd'hui
+            if (date.getTime() === today.getTime()) {
+                div.classList.add('today');
+            }
+
+            // Type de semaine (code couleur)
+            const weekType = getWeekType(getWeekStart(date));
+            if (weekType) {
+                div.classList.add('week-' + weekType);
+            }
+
+            // Numéro du jour
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = date.getDate();
+            div.appendChild(dayNumber);
+
+            // Activités du jour
+            const activitiesDiv = document.createElement('div');
+            activitiesDiv.className = 'day-activities';
+            
+            const dayActivities = getActivitiesForDate(date);
+            dayActivities.forEach(activity => {
+                const activityEl = document.createElement('div');
+                activityEl.className = `day-activity ${sportClass(activity.sport_type)}`;
+                activityEl.setAttribute('data-activity-id', activity.strava_id);
+
+                const icon = sportIcon(activity.sport_type);
+                const time = formatDuration(activity.moving_time);
+                const distance = (activity.distance / 1000).toFixed(1);
+                
+                activityEl.textContent = `${icon} ${time} ${distance}km`;
+                
+                // ✅ CORRECTION : Click sur l'activité pour aller en vue semaine avec sélection automatique
+                activityEl.onclick = (e) => {
+                    e.stopPropagation(); // Empêcher le click sur le jour
+                    const weekStart = getWeekStart(date);
+                    console.log(`🎯 Clic sur activité ${activity.strava_id}, passage en vue semaine avec présélection`);
+                    showWeekView(weekStart, activity.strava_id);
+                };
+                
+                activitiesDiv.appendChild(activityEl);
+            });
+
+            // Entraînements planifiés (uniquement si pas d'activité ce jour-là)
+            if (dayActivities.length === 0) {
+                const dayTrainings = getTrainingsForDate(date);
+                dayTrainings.filter(t => !t.strava_activity_id).forEach(training => {
+                    const planEl = document.createElement('div');
+                    planEl.className = 'day-activity planned';
+                    const sIcon = sportIcon(training.sport_type);
+                    let label = sIcon;
+                    if (training.title) label += ` ${training.title.substring(0, 15)}`;
+                    if (training.planned_distance) label += ` ${training.planned_distance}km`;
+                    if (training.planned_time) {
+                        const h = Math.floor(training.planned_time / 60);
+                        const m = training.planned_time % 60;
+                        label += ` ${h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + 'min'}`;
+                    }
+                    planEl.textContent = label;
+                    planEl.onclick = (e) => {
+                        e.stopPropagation();
+                        const weekStart = getWeekStart(date);
+                        showWeekView(weekStart);
+                    };
+                    activitiesDiv.appendChild(planEl);
+                });
+            }
+
+            div.appendChild(activitiesDiv);
+
+            // Annotations du jour
+            const annotationsDiv = document.createElement('div');
+            annotationsDiv.className = 'day-annotations';
+
+            const dayAnnotations = getAnnotationsForDate(date);
+            dayAnnotations.forEach(annotation => {
+                const annotEl = document.createElement('div');
+                annotEl.className = `day-annotation ${annotation.event_type}`;
+                
+                // Ajouter l'heure pour les annotations de type "time"
+                let displayText = annotation.title;
+                if (annotation.event_type === 'time') {
+                    const annTime = new Date(annotation.start_datetime).toLocaleTimeString('fr-FR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    displayText = `${annTime} - ${annotation.title}`;
+                }
+                
+                annotEl.textContent = displayText.substring(0, 30) + (displayText.length > 30 ? '...' : '');
+                annotationsDiv.appendChild(annotEl);
+            });
+            div.appendChild(annotationsDiv);
+
+            // Click handler sur le jour : présélectionner la 1ère activité du jour
+            div.onclick = (e) => {
+                if (e.target.classList.contains('day-activity')) return;
+
+                const weekStart = getWeekStart(date);
+                const firstActivity = dayActivities.length > 0 ? dayActivities[0].strava_id : null;
+                showWeekView(weekStart, firstActivity);
+            };
+
+            return div;
+        }
+
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Lundi
+            return new Date(d.setDate(diff));
+        }
+
+        function getActivitiesForDate(date) {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return activities.filter(a => a.start_date_local.startsWith(dateStr))
+                .sort((a, b) => new Date(a.start_date_local) - new Date(b.start_date_local));
+        }
+
+        function getAnnotationsForDate(date) {
+            const result = [];
+
+            annotations.forEach(ann => {
+                if (ann.event_type === 'period') {
+                    const weekStart = new Date(ann.start_datetime);
+                    const weekEnd = ann.end_datetime ? new Date(ann.end_datetime) : new Date(weekStart);
+                    if (!ann.end_datetime) weekEnd.setDate(weekEnd.getDate() + 6);
+                    weekStart.setHours(0, 0, 0, 0);
+                    weekEnd.setHours(23, 59, 59, 999);
+                    if (date >= weekStart && date <= weekEnd) {
+                        result.push(ann);
+                    }
+                } else if (ann.event_type === 'day' || ann.event_type === 'time') {
+                    const annDate = new Date(ann.start_datetime);
+                    if (date.toDateString() === annDate.toDateString()) {
+                        result.push(ann);
+                    }
+                }
+            });
+
+            return result;
+        }
+
+        // === CHARGEMENT VUE SEMAINE ===
+        function loadWeekView(weekStartDate = null) {
+            console.log('=== CHARGEMENT DE LA VUE SEMAINE ===');
+            
+            if (!weekStartDate) {
+                const today = new Date();
+                weekStartDate = getWeekStart(today);
+            }
+
+            const weekStart = new Date(weekStartDate);
+            weekStart.setHours(0, 0, 0, 0);
+            
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+
+            console.log('Semaine du', weekStart.toLocaleDateString(), 'au', weekEnd.toLocaleDateString());
+
+            // Mettre à jour le titre
+            const weekTitleText = `${weekStart.getDate()} ${['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][weekStart.getMonth()]} - ${weekEnd.getDate()} ${['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][weekEnd.getMonth()]} ${weekEnd.getFullYear()}`;
+            document.getElementById('weekTitle').textContent = weekTitleText;
+
+            // Afficher le type de semaine
+            const weekType = getWeekType(weekStart);
+            const badge = document.getElementById('weekTypeBadge');
+            if (weekType) {
+                const labels = { bloc: 'Bloc', recuperation: 'Récupération', course: 'Course' };
+                badge.textContent = labels[weekType] || weekType;
+                badge.className = 'week-type-badge ' + weekType;
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
+
+            // Filtrer les activités de la semaine
+            const weekActivities = activities.filter(activity => {
+                const activityDate = new Date(activity.start_date_local);
+                return activityDate >= weekStart && activityDate <= weekEnd;
+            });
+
+            console.log(`${weekActivities.length} activités trouvées pour cette semaine`);
+
+            // Afficher les jours de la semaine avec leurs activités
+            displayWeekDays(weekStart, weekActivities);
+
+            // Précharger les GPS des premières activités
+            if (weekActivities.length > 0) {
+                preloadStreams(weekActivities.slice(0, 2));
+            }
+        }
+
+        function displayWeekDays(weekStart, weekActivities) {
+            const weekView = document.getElementById('week-view');
+            weekView.innerHTML = '';
+
+            const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+            for (let i = 0; i < 7; i++) {
+                const currentDate = new Date(weekStart);
+                currentDate.setDate(currentDate.getDate() + i);
+
+                const dayActivities = weekActivities.filter(activity => {
+                    const activityDate = new Date(activity.start_date_local);
+                    return activityDate.toDateString() === currentDate.toDateString();
+                }).sort((a, b) => new Date(a.start_date_local) - new Date(b.start_date_local));
+
+                const dayContainer = document.createElement('div');
+                dayContainer.className = 'day-container';
+
+                // En-tête du jour
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+
+                const dateSpan = document.createElement('span');
+                dateSpan.className = 'day-header-date';
+                const fullDate = `${dayNames[i]} ${currentDate.getDate()} ${['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][currentDate.getMonth()]}`;
+                dateSpan.textContent = fullDate;
+                dayHeader.appendChild(dateSpan);
+
+                // Annotations dans le header
+                const dayAnnotations = getAnnotationsForDate(currentDate);
+                if (dayAnnotations.length > 0) {
+                    const annotationsContainer = document.createElement('div');
+                    annotationsContainer.className = 'day-header-annotations';
+
+                    dayAnnotations.forEach(ann => {
+                        const annSpan = document.createElement('span');
+                        annSpan.className = 'day-header-annotation';
+                        annSpan.style.cursor = 'pointer';
+
+                        let text = ann.title;
+                        if (ann.event_type === 'time') {
+                            const annTime = new Date(ann.start_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                            text = `${annTime} - ${ann.title}`;
+                        }
+                        annSpan.textContent = text.length > 25 ? text.substring(0, 25) + '...' : text;
+                        annSpan.onclick = (e) => {
+                            e.stopPropagation();
+                            onAnnotationClick(ann);
+                        };
+                        annotationsContainer.appendChild(annSpan);
+                    });
+
+                    dayHeader.appendChild(annotationsContainer);
+                }
+
+                dayContainer.appendChild(dayHeader);
+
+                // Entraînements planifiés : uniquement ceux sans activité ce jour-là
+                const dayTrainings = getTrainingsForDate(currentDate);
+                const plannedTrainings = dayActivities.length === 0
+                    ? dayTrainings.filter(t => !t.strava_activity_id)
+                    : [];
+
+                // Contenu du jour
+                if (dayActivities.length > 0 || plannedTrainings.length > 0) {
+                    const dayContent = document.createElement('div');
+                    dayContent.className = 'day-content';
+
+                    // Activités (les entraînements par date s'affichent sous l'activité via createActivityItem)
+                    dayActivities.forEach(activity => {
+                        const activityItem = createActivityItem(activity);
+                        dayContent.appendChild(activityItem);
+                    });
+
+                    // Entraînements planifiés (jours sans activité)
+                    plannedTrainings.forEach(training => {
+                        const item = createPlannedTrainingItem(training);
+                        dayContent.appendChild(item);
+                    });
+
+                    dayContainer.appendChild(dayContent);
+                }
+
+                weekView.appendChild(dayContainer);
+            }
+
+            // ✅ AUTO-SÉLECTION de l'activité présélectionnée après rendu du DOM
+            if (preselectedActivityId) {
+                console.log(`🔍 Recherche de l'activité ${preselectedActivityId} pour auto-sélection`);
+                setTimeout(async () => {
+                    const activityElement = document.querySelector(`.activity-item[data-activity-id="${preselectedActivityId}"]`);
+                    if (activityElement) {
+                        console.log(`✅ Activité ${preselectedActivityId} trouvée, auto-sélection`);
+
+                        // Appeler directement selectActivity au lieu de simuler un clic
+                        await selectActivity(preselectedActivityId, null);
+                        
+                        // Scroller jusqu'à l'activité
+                        activityElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        console.warn(`⚠ Activité ${preselectedActivityId} non trouvée dans le DOM`);
+                    }
+                    preselectedActivityId = null; // Réinitialiser
+                }, 300); // Délai pour laisser le DOM se mettre à jour
+            }
+        }
+
+        function createActivityItem(activity) {
+            const div = document.createElement('div');
+            div.className = 'activity-item';
+            div.setAttribute('data-activity-id', activity.strava_id);
+            div.onclick = (e) => selectActivity(activity.strava_id, e);
+
+            // Icône
+            const icon = document.createElement('div');
+            icon.className = 'activity-icon';
+            icon.textContent = sportIcon(activity.sport_type);
+
+            // Détails
+            const details = document.createElement('div');
+            details.className = 'activity-details';
+
+            const name = document.createElement('div');
+            name.className = 'activity-name';
+            name.textContent = activity.name;
+
+            const stats = document.createElement('div');
+            stats.className = 'activity-stats';
+
+            const distance = document.createElement('div');
+            distance.className = 'activity-stat';
+            distance.innerHTML = `<span>📏</span> ${(activity.distance / 1000).toFixed(2)} km`;
+
+            const elevation = document.createElement('div');
+            elevation.className = 'activity-stat';
+            elevation.innerHTML = `<span>⛰️</span> ${Math.round(activity.total_elevation_gain)} m`;
+
+            const duration = document.createElement('div');
+            duration.className = 'activity-stat';
+            duration.innerHTML = `<span>⏱️</span> ${formatDuration(activity.moving_time)}`;
+
+            stats.appendChild(distance);
+            stats.appendChild(elevation);
+            stats.appendChild(duration);
+
+            details.appendChild(name);
+            details.appendChild(stats);
+
+            // Entrainement lié à cette activité (par ID ou par date pour les anciens)
+            const actDate = new Date(activity.start_date_local);
+            const actDateStr = `${actDate.getFullYear()}-${String(actDate.getMonth() + 1).padStart(2, '0')}-${String(actDate.getDate()).padStart(2, '0')}`;
+            const training = getTrainingForActivity(activity.strava_id)
+                || trainings.find(t => t.date === actDateStr && !t.strava_activity_id);
+            if (training) {
+                const trainingDiv = document.createElement('div');
+                trainingDiv.className = 'activity-training';
+                trainingDiv.textContent = training.title;
+                trainingDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    const action = prompt(`Entrainement : "${training.title}"\n\nTapez "s" pour supprimer ou "m" pour modifier`);
+                    if (action && action.toLowerCase() === 's') deleteTraining(training.id);
+                    else if (action && action.toLowerCase() === 'm') editTraining(training);
+                };
+                details.appendChild(trainingDiv);
+            }
+
+            // Heure
+            const time = document.createElement('div');
+            time.className = 'activity-time';
+            const activityTime = new Date(activity.start_date_local);
+            time.textContent = activityTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+            div.appendChild(icon);
+            div.appendChild(details);
+            div.appendChild(time);
+
+            return div;
+        }
+
+        function createPlannedTrainingItem(training) {
+            const div = document.createElement('div');
+            div.className = 'planned-training-item';
+
+            // Icône sport
+            const icon = document.createElement('div');
+            icon.className = 'activity-icon';
+            icon.textContent = sportIcon(training.sport_type);
+
+            const details = document.createElement('div');
+            details.className = 'activity-details';
+
+            // Sport en titre
+            const name = document.createElement('div');
+            name.className = 'activity-name';
+            name.textContent = sportLabel(training.sport_type);
+            details.appendChild(name);
+
+            // Stats : distance et/ou durée
+            const stats = document.createElement('div');
+            stats.className = 'activity-stats';
+
+            if (training.planned_distance) {
+                const dist = document.createElement('div');
+                dist.className = 'activity-stat';
+                dist.innerHTML = `<span>📏</span> ${training.planned_distance} km`;
+                stats.appendChild(dist);
+            }
+            if (training.planned_time) {
+                const dur = document.createElement('div');
+                dur.className = 'activity-stat';
+                const h = Math.floor(training.planned_time / 60);
+                const m = training.planned_time % 60;
+                dur.innerHTML = `<span>⏱️</span> ${h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + 'min'}`;
+                stats.appendChild(dur);
+            }
+
+            if (stats.children.length > 0) details.appendChild(stats);
+
+            // Séance en dessous (comme activity-training)
+            if (training.title) {
+                const trainingDiv = document.createElement('div');
+                trainingDiv.className = 'activity-training';
+                trainingDiv.textContent = training.title;
+                details.appendChild(trainingDiv);
+            }
+
+            div.appendChild(icon);
+            div.appendChild(details);
+
+            div.onclick = () => {
+                if (div.classList.contains('active')) {
+                    const displayTitle = training.title || `${training.planned_distance || '?'} km`;
+                    const action = prompt(`Entrainement planifié : "${displayTitle}"\n\nTapez "s" pour supprimer ou "m" pour modifier`);
+                    if (action && action.toLowerCase() === 's') deleteTraining(training.id);
+                    else if (action && action.toLowerCase() === 'm') editTraining(training);
+                } else {
+                    div.classList.add('active');
+                }
+            };
+
+            return div;
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+                return `${hours}h${minutes.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}min`;
+        }
+
+        // === SÉLECTION D'UNE ACTIVITÉ ===
+        async function selectActivity(stravaId, e) {
+            console.log(`📍 Sélection de l'activité ${stravaId}`);
+
+            // Mettre en surbrillance
+            document.querySelectorAll('.activity-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Trouver l'élément à mettre en surbrillance
+            const activityElement = e ? e.currentTarget : document.querySelector(`.activity-item[data-activity-id="${stravaId}"]`);
+            if (activityElement) {
+                activityElement.classList.add('active');
+                
+                // ✅ AJOUT : Scroller jusqu'à l'activité sélectionnée
+                setTimeout(() => {
+                    activityElement.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }, 100);
+            }
+
+            currentActivityId = stravaId;
+            selectedLapIndex = null;
+
+            // Charger les données GPS et les laps en parallèle
+            await Promise.all([
+                loadActivityStreams(stravaId),
+                loadActivityLaps(stravaId)
+            ]);
+
+            // Afficher les laps APRÈS que les streams soient chargés
+            displayLaps(currentLaps);
+
+            // Précharger les 2 prochaines
+            const currentIndex = activities.findIndex(a => a.strava_id === stravaId);
+            if (currentIndex !== -1) {
+                const nextActivities = activities.slice(currentIndex + 1, currentIndex + 3);
+                preloadStreams(nextActivities);
+            }
+        }
+
+        async function loadActivityStreams(stravaId) {
+            console.log(`Chargement des streams pour l'activité ${stravaId}`);
+
+            // Tier 1: Cache local
+            if (streamsCache.has(stravaId)) {
+                console.log('✓ Données en cache');
+                displayStreams(stravaId, streamsCache.get(stravaId));
+                return;
+            }
+
+            try {
+                // Tier 2: Supabase
+                const streams = await fetchAllStreams(stravaId);
+
+                if (streams.length > 0) {
+                    console.log(`✓ ${streams.length} points GPS depuis Supabase`);
+                    streamsCache.set(stravaId, streams);
+                    saveCacheToStorage();
+                    displayStreams(stravaId, streams);
+                    return;
+                }
+
+                // Tier 3: Strava API (lazy-load)
+                console.log(`Strava connecte: ${window.stravaConnected}`);
+                if (window.stravaConnected) {
+                    console.log('Streams absents de Supabase, chargement depuis Strava API...');
+                    const stravaStreams = await fetchStreamsFromStrava(stravaId);
+                    console.log(`Strava API retourne ${stravaStreams.length} points`);
+                    if (stravaStreams.length > 0) {
+                        console.log(`✓ ${stravaStreams.length} points GPS depuis Strava API`);
+                        streamsCache.set(stravaId, stravaStreams);
+                        saveCacheToStorage();
+                        displayStreams(stravaId, stravaStreams);
+                    } else {
+                        console.warn('Aucun stream retourne par Strava API');
+                        displayStreams(stravaId, []);
+                    }
+                } else {
+                    console.warn('Strava non connecte, impossible de charger les streams');
+                    displayStreams(stravaId, []);
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement des streams:', error);
+            }
+        }
+
+        async function fetchAllStreams(stravaId) {
+            let allData = [];
+            const batchSize = 1000;
+            let offset = 0;
+            while (true) {
+                const { data, error } = await window.supabaseClient
+                    .from('strava_activity_streams')
+                    .select('*')
+                    .eq('strava_id', stravaId)
+                    .order('stream_index')
+                    .range(offset, offset + batchSize - 1);
+                if (error) throw error;
+                allData = allData.concat(data);
+                if (data.length < batchSize) break;
+                offset += batchSize;
+            }
+            return allData;
+        }
+
+        async function preloadStreams(activities) {
+            for (const activity of activities) {
+                if (!streamsCache.has(activity.strava_id)) {
+                    try {
+                        let streams = await fetchAllStreams(activity.strava_id);
+                        // Si Supabase n'a pas de streams, essayer Strava API
+                        if (streams.length === 0 && window.stravaConnected) {
+                            streams = await fetchStreamsFromStrava(activity.strava_id);
+                        }
+                        // Ne cacher que si on a des donnees
+                        if (streams.length > 0) {
+                            streamsCache.set(activity.strava_id, streams);
+                            console.log(`✓ Préchargé: ${activity.strava_id} (${streams.length} points)`);
+                        }
+                    } catch (error) {
+                        console.warn(`Erreur préchargement ${activity.strava_id}:`, error);
+                    }
+                }
+            }
+            saveCacheToStorage();
+        }
+
+        function displayStreams(stravaId, streams) {
+            if (streams.length === 0) {
+                console.warn('Aucune donnée GPS');
+                return;
+            }
+
+            currentStreams = streams;
+
+            // Réinitialiser le segment virtuel
+            segmentStart = null;
+            segmentEnd = null;
+            document.getElementById('segmentResult').style.display = 'none';
+            showSegmentOnMap(null, null);
+
+            // Afficher sur la carte
+            displayOnMap(streams);
+
+            // Afficher le graphique d'altitude
+            displayElevationChart(streams);
+        }
+
+        function displayOnMap(streams) {
+            // Effacer l'ancienne trace
+            if (currentPolyline) {
+                map.removeLayer(currentPolyline);
+            }
+            currentMarkers.forEach(m => map.removeLayer(m));
+            currentMarkers = [];
+            hideHoverMarker();
+
+            // Créer les coordonnées
+            const coordinates = streams.map(s => [s.latitude, s.longitude]);
+
+            // Lisser les coordonnées
+            const smoothed = smoothCoordinates(coordinates);
+
+            // Créer la polyline
+            currentPolyline = L.polyline(smoothed, {
+                color: '#fc4c02',
+                weight: 3,
+                opacity: 0.8
+            }).addTo(map);
+
+            // Forcer le recalcul des dimensions (utile quand on vient du mois)
+            map.invalidateSize();
+
+            // Centrer la carte avec du padding et un zoom max pour ne pas trop zoomer sur les petits laps
+            map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30], maxZoom: 16 });
+
+            // Marqueurs de départ et d'arrivée
+            const startMarker = L.marker(smoothed[0], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background: #4caf50; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏁</div>'
+                })
+            }).addTo(map);
+
+            const endMarker = L.marker(smoothed[smoothed.length - 1], {
+                icon: L.divIcon({
+                    className: 'custom-marker',
+                    html: '<div style="background: #f44336; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏁</div>'
+                })
+            }).addTo(map);
+
+            currentMarkers.push(startMarker, endMarker);
+        }
+
+        function smoothCoordinates(coords, windowSize = 5) {
+            if (coords.length < windowSize) return coords;
+
+            const smoothed = [];
+            const halfWindow = Math.floor(windowSize / 2);
+
+            for (let i = 0; i < coords.length; i++) {
+                const start = Math.max(0, i - halfWindow);
+                const end = Math.min(coords.length, i + halfWindow + 1);
+                const window = coords.slice(start, end);
+
+                const avgLat = window.reduce((sum, c) => sum + c[0], 0) / window.length;
+                const avgLng = window.reduce((sum, c) => sum + c[1], 0) / window.length;
+
+                smoothed.push([avgLat, avgLng]);
+            }
+
+            return smoothed;
+        }
+
+        // Plugin Chart.js pour la ligne verticale
+        const crosshairPlugin = {
+            id: 'crosshair',
+            afterDraw(chart) {
+                if (chart._crosshairX != null) {
+                    const { ctx, chartArea } = chart;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(chart._crosshairX, chartArea.top);
+                    ctx.lineTo(chart._crosshairX, chartArea.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
+        const lapHoverPlugin = {
+            id: 'lapHover',
+            beforeDatasetsDraw(chart) {
+                if (!hoveredLapRange) return;
+                const { ctx, chartArea } = chart;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data || meta.data.length === 0) return;
+
+                const startPt = meta.data[hoveredLapRange.start];
+                const endPt = meta.data[hoveredLapRange.end];
+                if (!startPt || !endPt) return;
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(30, 136, 229, 0.18)';
+                ctx.fillRect(startPt.x, chartArea.top, endPt.x - startPt.x, chartArea.bottom - chartArea.top);
+                ctx.restore();
+            }
+        };
+
+        function updateHoverMarker(index) {
+            if (index < 0 || index >= currentStreams.length) return;
+            const point = currentStreams[index];
+            if (!point.latitude || !point.longitude) return;
+
+            const latlng = [point.latitude, point.longitude];
+
+            if (!hoverMarker) {
+                hoverMarker = L.circleMarker(latlng, {
+                    radius: 7,
+                    color: '#1e88e5',
+                    fillColor: '#1e88e5',
+                    fillOpacity: 1,
+                    weight: 3,
+                    className: 'hover-dot'
+                }).addTo(map);
+            } else {
+                hoverMarker.setLatLng(latlng);
+                if (!map.hasLayer(hoverMarker)) {
+                    hoverMarker.addTo(map);
+                }
+            }
+        }
+
+        function hideHoverMarker() {
+            if (hoverMarker && map.hasLayer(hoverMarker)) {
+                map.removeLayer(hoverMarker);
+            }
+        }
+
+        // === SEGMENT VIRTUEL ===
+        let segmentMode = false;
+        let segmentStart = null;
+        let segmentEnd = null;
+
+        function toggleSegmentMode() {
+            segmentMode = !segmentMode;
+            segmentStart = null;
+            segmentEnd = null;
+            const btn = document.getElementById('segmentBtn');
+            const container = document.querySelector('.chart-container');
+            const result = document.getElementById('segmentResult');
+            if (segmentMode) {
+                btn.style.background = '#1e88e5';
+                btn.style.color = 'white';
+                container.classList.add('segment-mode');
+                result.style.display = 'none';
+                result.textContent = '';
+                showSegmentOnMap(null, null);
+            } else {
+                btn.style.background = 'white';
+                btn.style.color = '#1e88e5';
+                container.classList.remove('segment-mode');
+                result.style.display = 'none';
+                showSegmentOnMap(null, null);
+            }
+        }
+
+        function getStreamIndexAtChartX(event, chartInstance) {
+            const points = chartInstance.getElementsAtEventForMode(event, 'index', { intersect: false }, true);
+            if (points.length > 0) return points[0].index;
+            return null;
+        }
+
+        function showSegmentResult(streams, startIdx, endIdx) {
+            const s = streams[startIdx];
+            const e = streams[endIdx];
+            const distKm = ((e.distance - s.distance) / 1000).toFixed(2);
+            const timeSec = e.time - s.time;
+            const mins = Math.floor(timeSec / 60);
+            const secs = timeSec % 60;
+            const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
+            const allureSecPerKm = timeSec / (distKm);
+            const alMin = Math.floor(allureSecPerKm / 60);
+            const alSec = Math.round(allureSecPerKm % 60);
+            const allureStr = `${alMin}:${String(alSec).padStart(2, '0')}/km`;
+
+            const result = document.getElementById('segmentResult');
+            result.textContent = `${distKm}km  ${timeStr}  ${allureStr}`;
+            result.style.display = 'block';
+        }
+
+        function showSegmentOnMap(startIdx, endIdx) {
+            // Supprimer ancien segment
+            if (window.segmentPolyline) {
+                map.removeLayer(window.segmentPolyline);
+                window.segmentPolyline = null;
+            }
+            if (startIdx === null || endIdx === null || !currentStreams) return;
+            const slice = currentStreams.slice(startIdx, endIdx + 1);
+            const latlngs = slice.filter(s => s.latitude && s.longitude).map(s => [s.latitude, s.longitude]);
+            if (latlngs.length > 0) {
+                window.segmentPolyline = L.polyline(latlngs, { color: '#ff5722', weight: 4 }).addTo(map);
+            }
+        }
+
+        function drawSegmentLines(chartInstance, startIdx, endIdx) {
+            // Dessiné via plugin inline dans le chart onClick
+        }
+
+        function displayElevationChart(streams) {
+            const ctx = document.getElementById('elevationChart').getContext('2d');
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            const distances = streams.map(s => s.distance / 1000);
+            const elevations = streams.map(s => s.altitude);
+            const totalKm = distances[distances.length - 1];
+            const distStep = totalKm < 10 ? 1 : totalKm < 20 ? 2 : 5;
+            const distTicks = [];
+            for (let k = 0; k <= totalKm; k += distStep) distTicks.push(k);
+
+            // Échelle Y
+            const minElev = Math.min(...elevations);
+            const maxElev = Math.max(...elevations);
+            const range = maxElev - minElev;
+            const minRange = 200;
+            let yMin, yMax;
+            if (range < minRange) {
+                const mid = (minElev + maxElev) / 2;
+                yMin = Math.floor(mid - minRange / 2);
+                yMax = Math.ceil(mid + minRange / 2);
+            } else {
+                yMin = Math.floor(minElev);
+                yMax = Math.ceil(maxElev);
+            }
+
+            const chartData = distances.map((d, i) => ({ x: d, y: elevations[i] }));
+
+            const segmentPlugin = {
+                id: 'segmentLines',
+                afterDraw(chartInstance) {
+                    if (!segmentStart && !segmentEnd) return;
+                    const { ctx, chartArea, scales } = chartInstance;
+                    ctx.save();
+                    const drawLine = (idx, color) => {
+                        if (idx === null) return;
+                        const meta = chartInstance.getDatasetMeta(0);
+                        const el = meta.data[idx];
+                        if (!el) return;
+                        ctx.beginPath();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([4, 3]);
+                        ctx.moveTo(el.x, chartArea.top);
+                        ctx.lineTo(el.x, chartArea.bottom);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    };
+                    drawLine(segmentStart, '#ff5722');
+                    drawLine(segmentEnd, '#ff5722');
+                    if (segmentStart !== null && segmentEnd !== null) {
+                        const meta = chartInstance.getDatasetMeta(0);
+                        const x1 = meta.data[segmentStart]?.x;
+                        const x2 = meta.data[segmentEnd]?.x;
+                        if (x1 !== undefined && x2 !== undefined) {
+                            ctx.fillStyle = 'rgba(255, 87, 34, 0.12)';
+                            ctx.fillRect(Math.min(x1, x2), chartArea.top, Math.abs(x2 - x1), chartArea.bottom - chartArea.top);
+                        }
+                    }
+                    ctx.restore();
+                }
+            };
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Altitude (m)',
+                        data: chartData,
+                        borderColor: '#1e88e5',
+                        backgroundColor: 'rgba(30, 136, 229, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                plugins: [crosshairPlugin, lapHoverPlugin, segmentPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick(event, elements, chartInstance) {
+                        if (!segmentMode) return;
+                        const idx = getStreamIndexAtChartX(event.native, chartInstance);
+                        if (idx === null) return;
+                        if (segmentStart === null || (segmentStart !== null && segmentEnd !== null)) {
+                            // Premier clic ou réinitialisation
+                            segmentStart = idx;
+                            segmentEnd = null;
+                            document.getElementById('segmentResult').style.display = 'none';
+                            showSegmentOnMap(null, null);
+                        } else {
+                            // Second clic
+                            segmentEnd = idx > segmentStart ? idx : segmentStart;
+                            segmentStart = idx < segmentStart ? idx : segmentStart;
+                            showSegmentResult(streams, segmentStart, segmentEnd);
+                            showSegmentOnMap(segmentStart, segmentEnd);
+                        }
+                        chartInstance.draw();
+                    },
+                    onHover(event, elements, chart) {
+                        if (!event.native) {
+                            chart._crosshairX = null;
+                            hideHoverMarker();
+                            chart.draw();
+                            return;
+                        }
+                        const points = chart.getElementsAtEventForMode(event.native, 'index', { intersect: false }, true);
+                        if (points.length > 0) {
+                            const idx = points[0].index;
+                            chart._crosshairX = points[0].element.x;
+                            chart.draw();
+                            updateHoverMarker(idx);
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title(items) {
+                                    if (!items[0]) return '';
+                                    const x = items[0].parsed ? items[0].parsed.x : parseFloat(items[0].label);
+                                    return `${x.toFixed(2)} km`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => alignLapsWithChart()
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: false },
+                            min: 0,
+                            max: totalKm,
+                            afterBuildTicks(axis) {
+                                axis.ticks = distTicks.map(v => ({ value: v }));
+                            },
+                            ticks: {
+                                callback: v => `${v}`
+                            }
+                        },
+                        y: {
+                            min: yMin,
+                            max: yMax,
+                            title: {
+                                display: true,
+                                text: 'Altitude (m)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Cacher le marqueur quand la souris quitte le graphique
+            document.getElementById('elevationChart').addEventListener('mouseleave', () => {
+                if (chart) {
+                    chart._crosshairX = null;
+                    chart.draw();
+                }
+                hideHoverMarker();
+            });
+        }
+
+        function initMap() {
+            if (map) return;
+
+            console.log('Initialisation de la carte...');
+            map = L.map('map').setView([45.764, 4.836], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            console.log('✓ Carte initialisée');
+        }
+
+        function alignLapsWithChart() {
+            if (!chart || !chart.chartArea) return;
+            const container = document.getElementById('lapsContainer');
+            if (!container) return;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || meta.data.length < 2) return;
+            const firstX = meta.data[0].x;
+            const lastX = meta.data[meta.data.length - 1].x;
+            const chartCanvas = document.getElementById('elevationChart');
+            const canvasWidth = chartCanvas.clientWidth;
+            container.style.paddingLeft = firstX + 'px';
+            container.style.paddingRight = (canvasWidth - lastX) + 'px';
+        }
+
+        // === LAPS ===
+        async function loadActivityLaps(stravaId) {
+            // Tier 1: Cache local
+            if (lapsCache.has(stravaId)) {
+                currentLaps = lapsCache.get(stravaId);
+                return;
+            }
+
+            try {
+                // Tier 2: Supabase
+                const { data: laps, error } = await window.supabaseClient
+                    .from('strava_laps')
+                    .select('*')
+                    .eq('activity_id', stravaId)
+                    .order('lap_index');
+                if (error) throw error;
+
+                if (laps && laps.length > 0) {
+                    currentLaps = laps;
+                    lapsCache.set(stravaId, currentLaps);
+                    return;
+                }
+
+                // Tier 3: Strava API (lazy-load)
+                if (window.stravaConnected) {
+                    const stravaLaps = await fetchLapsFromStrava(stravaId);
+                    currentLaps = stravaLaps;
+                    lapsCache.set(stravaId, currentLaps);
+                } else {
+                    currentLaps = [];
+                }
+            } catch (error) {
+                console.warn('Erreur laps:', error);
+                currentLaps = [];
+                document.getElementById('lapsContainer').style.display = 'none';
+            }
+        }
+
+        function displayLaps(laps) {
+            const container = document.getElementById('lapsContainer');
+            const list = document.getElementById('lapsList');
+            list.innerHTML = '';
+
+            if (!laps || laps.length <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+
+            // Utiliser les indices de stream pour aligner avec le chart (axe catégoriel = espacement par index)
+            const totalPoints = currentStreams.length;
+            const totalIntervals = totalPoints > 1 ? totalPoints - 1 : 1;
+
+            // Calculer min/max vitesse pour proportionner la hauteur
+            const speeds = laps.map(l => l.average_speed || 0).filter(s => s > 0);
+            const minSpeed = Math.min(...speeds);
+            const maxSpeed = Math.max(...speeds);
+            const minH = 10;
+            const maxH = 55;
+
+            laps.forEach((lap, idx) => {
+                const item = document.createElement('div');
+                item.className = 'lap-item';
+                item.onclick = () => selectLap(idx);
+
+                const startIdx = lap.start_index || 0;
+                const endIdx = lap.end_index || 0;
+                const pct = (endIdx - startIdx) / totalIntervals * 100;
+                item.style.flex = `${pct} 0 0`;
+
+                // Hauteur proportionnelle à la vitesse moyenne
+                const speed = lap.average_speed || 0;
+                const h = maxSpeed > minSpeed
+                    ? minH + (speed - minSpeed) / (maxSpeed - minSpeed) * (maxH - minH)
+                    : (maxH + minH) / 2;
+                item.style.height = `${Math.round(h)}px`;
+
+                // Tooltip avec infos du lap
+                const distKm = (lap.distance / 1000).toFixed(2);
+                const durMin = Math.floor(lap.moving_time / 60);
+                const durSec = lap.moving_time % 60;
+                const durStr = `${durMin}'${String(durSec).padStart(2, '0')}"`;
+
+                // Vitesse/allure selon le type d'activité
+                const currentActivity = activities.find(a => a.strava_id === currentActivityId);
+                const useSpeed = currentActivity && (currentActivity.sport_type === 'Ride' || currentActivity.sport_type === 'NordicSki' || currentActivity.sport_type === 'AlpineSki' || currentActivity.sport_type === 'BackcountrySki');
+                let speedStr;
+                if (useSpeed) {
+                    const kmh = lap.average_speed ? (lap.average_speed * 3.6).toFixed(1) : '0';
+                    speedStr = `${kmh} km/h`;
+                } else {
+                    const paceTotal = lap.distance > 0 ? lap.moving_time / (lap.distance / 1000) : 0;
+                    const paceMin = Math.floor(paceTotal / 60);
+                    const paceSec = Math.round(paceTotal % 60);
+                    speedStr = `${paceMin}'${String(paceSec).padStart(2, '0')}" /km`;
+                }
+
+                const tooltip = document.createElement('div');
+                tooltip.className = 'lap-tooltip';
+                tooltip.innerHTML = `${distKm} km<br>${durStr}<br>${speedStr}`;
+                item.appendChild(tooltip);
+
+                item.addEventListener('mouseenter', () => hoverLap(idx));
+                item.addEventListener('mouseleave', () => unhoverLap());
+
+                list.appendChild(item);
+            });
+
+            // Bloc pour la portion restante après le dernier lap
+            const lastLap = laps[laps.length - 1];
+            const lastEndIdx = lastLap ? (lastLap.end_index || 0) : 0;
+            const remainderIntervals = totalIntervals - lastEndIdx;
+            if (remainderIntervals > 1) {
+                const remPct = (remainderIntervals / totalIntervals) * 100;
+                const remItem = document.createElement('div');
+                remItem.className = 'lap-item';
+                remItem.style.flex = `${remPct} 0 0`;
+                remItem.style.opacity = '0.5';
+                remItem.style.borderStyle = 'dashed';
+                list.appendChild(remItem);
+            }
+        }
+
+        function hoverLap(idx) {
+            const lap = currentLaps[idx];
+            if (!lap) return;
+
+            const startIdx = lap.start_index || 0;
+            const endIdx = lap.end_index || 0;
+
+            // Highlight sur le profil
+            hoveredLapRange = { start: startIdx, end: endIdx };
+            if (chart) chart.draw();
+
+            // Highlight sur la carte (bleu, sans zoom)
+            if (lapHoverPolyline) {
+                map.removeLayer(lapHoverPolyline);
+            }
+            const lapStreams = currentStreams.slice(startIdx, endIdx + 1);
+            if (lapStreams.length > 0 && map) {
+                const lapCoords = smoothCoordinates(lapStreams.map(s => [s.latitude, s.longitude]));
+                lapHoverPolyline = L.polyline(lapCoords, {
+                    color: '#1e88e5',
+                    weight: 5,
+                    opacity: 0.8
+                }).addTo(map);
+            }
+        }
+
+        function unhoverLap() {
+            // Retirer le highlight du profil
+            hoveredLapRange = null;
+            if (chart) chart.draw();
+
+            // Retirer le highlight de la carte
+            if (lapHoverPolyline) {
+                map.removeLayer(lapHoverPolyline);
+                lapHoverPolyline = null;
+            }
+        }
+
+        function selectLap(idx) {
+            const lap = currentLaps[idx];
+            if (!lap) return;
+
+            // Supprimer l'ancien highlight
+            if (lapHighlightPolyline) {
+                map.removeLayer(lapHighlightPolyline);
+                lapHighlightPolyline = null;
+            }
+
+            // Toggle : re-cliquer sur le même lap le désélectionne
+            if (selectedLapIndex === idx) {
+                selectedLapIndex = null;
+                // Réafficher le chart complet
+                displayElevationChart(currentStreams);
+                // Rezoomer sur la trace complète
+                if (currentPolyline) {
+                    map.fitBounds(currentPolyline.getBounds(), { padding: [30, 30], maxZoom: 16 });
+                }
+                // Retirer la classe active
+                document.querySelectorAll('.lap-item').forEach(el => el.classList.remove('active'));
+                return;
+            }
+
+            selectedLapIndex = idx;
+
+            // Mettre en surbrillance le lap
+            document.querySelectorAll('.lap-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.lap-item')[idx]?.classList.add('active');
+
+            const startIdx = lap.start_index;
+            const endIdx = lap.end_index;
+
+            if (startIdx == null || endIdx == null || !currentStreams.length) return;
+
+            // Extraire la portion du stream pour ce lap
+            const lapStreams = currentStreams.slice(startIdx, endIdx + 1);
+
+            // Afficher le profil du lap uniquement
+            displayElevationChartForLap(currentStreams, startIdx, endIdx);
+
+            // Superposer le lap en bleu sur la trace existante (avec le même lissage)
+            const lapCoords = smoothCoordinates(lapStreams.map(s => [s.latitude, s.longitude]));
+            lapHighlightPolyline = L.polyline(lapCoords, {
+                color: '#1e88e5',
+                weight: 3,
+                opacity: 0.9
+            }).addTo(map);
+
+            // Zoom centré sur le lap
+            map.fitBounds(lapHighlightPolyline.getBounds(), { padding: [50, 50], maxZoom: 15 });
+        }
+
+        function displayElevationChartForLap(streams, startIdx, endIdx) {
+            const ctx = document.getElementById('elevationChart').getContext('2d');
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            const distances = streams.map(s => s.distance / 1000);
+            const elevations = streams.map(s => s.altitude);
+            const totalKmLap = distances[distances.length - 1];
+            const distStepLap = totalKmLap < 10 ? 1 : totalKmLap < 20 ? 2 : 5;
+            const distTicksLap = [];
+            for (let k = 0; k <= totalKmLap; k += distStepLap) distTicksLap.push(k);
+
+            // Couleurs : gris pour hors-lap, bleu pour le lap
+            const bgColors = streams.map((s, i) => {
+                return (i >= startIdx && i <= endIdx)
+                    ? 'rgba(30, 136, 229, 0.3)'
+                    : 'rgba(200, 200, 200, 0.1)';
+            });
+            const borderColors = streams.map((s, i) => {
+                return (i >= startIdx && i <= endIdx)
+                    ? '#1e88e5'
+                    : '#ccc';
+            });
+
+            // Segment dataset pour colorier la bordure par segment
+            const segmentColor = (ctx) => {
+                const idx = ctx.p0DataIndex;
+                return (idx >= startIdx && idx < endIdx) ? '#1e88e5' : '#ccc';
+            };
+
+            // Échelle Y
+            const minElev = Math.min(...elevations);
+            const maxElev = Math.max(...elevations);
+            const range = maxElev - minElev;
+            const minRange = 200;
+            let yMin, yMax;
+            if (range < minRange) {
+                const mid = (minElev + maxElev) / 2;
+                yMin = Math.floor(mid - minRange / 2);
+                yMax = Math.ceil(mid + minRange / 2);
+            } else {
+                yMin = Math.floor(minElev);
+                yMax = Math.ceil(maxElev);
+            }
+
+            const chartDataLap = distances.map((d, i) => ({ x: d, y: elevations[i] }));
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Altitude (m)',
+                        data: chartDataLap,
+                        borderColor: '#ccc',
+                        backgroundColor: 'rgba(200,200,200,0.05)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        segment: {
+                            borderColor: segmentColor,
+                            backgroundColor: (ctx) => {
+                                const idx = ctx.p0DataIndex;
+                                return (idx >= startIdx && idx < endIdx)
+                                    ? 'rgba(30, 136, 229, 0.15)'
+                                    : 'rgba(200,200,200,0.05)';
+                            }
+                        }
+                    }]
+                },
+                plugins: [crosshairPlugin, lapHoverPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onHover(event, elements, chart) {
+                        if (!event.native) {
+                            chart._crosshairX = null;
+                            hideHoverMarker();
+                            chart.draw();
+                            return;
+                        }
+                        const points = chart.getElementsAtEventForMode(event.native, 'index', { intersect: false }, true);
+                        if (points.length > 0) {
+                            const idx = points[0].index;
+                            chart._crosshairX = points[0].element.x;
+                            chart.draw();
+                            updateHoverMarker(idx);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title(items) {
+                                    if (!items[0]) return '';
+                                    const x = items[0].parsed ? items[0].parsed.x : parseFloat(items[0].label);
+                                    return `${x.toFixed(2)} km`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        onComplete: () => alignLapsWithChart()
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: false },
+                            min: 0,
+                            max: totalKmLap,
+                            afterBuildTicks(axis) {
+                                axis.ticks = distTicksLap.map(v => ({ value: v }));
+                            },
+                            ticks: {
+                                callback: v => `${v}`
+                            }
+                        },
+                        y: {
+                            min: yMin,
+                            max: yMax,
+                            title: { display: true, text: 'Altitude (m)' }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('elevationChart').addEventListener('mouseleave', () => {
+                if (chart) {
+                    chart._crosshairX = null;
+                    chart.draw();
+                }
+                hideHoverMarker();
+            });
+        }
+
+        // === ANNOTATIONS ===
+        async function loadAnnotations() {
+            console.log('Chargement des annotations...');
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('agenda_events')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                annotations = data || [];
+                console.log(`✓ ${annotations.length} annotations chargées`);
+            } catch (error) {
+                console.error('Erreur lors du chargement des annotations:', error);
+                annotations = [];
+            }
+        }
+
+        let editingAnnotationId = null;
+
+        function onAnnotationClick(ann) {
+            const action = prompt(`Annotation : "${ann.title}"\n\nTapez "s" pour supprimer ou "m" pour modifier`);
+            if (!action) return;
+
+            if (action.toLowerCase() === 's') {
+                deleteAnnotation(ann.id);
+            } else if (action.toLowerCase() === 'm') {
+                editAnnotation(ann);
+            }
+        }
+
+        async function deleteAnnotation(id) {
+            try {
+                const { error } = await window.supabaseClient
+                    .from('agenda_events')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                console.log('✓ Annotation supprimée');
+                await loadAnnotations();
+
+                if (currentView === 'week') {
+                    loadWeekView(selectedWeekStart);
+                } else {
+                    loadMonthView();
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression:', error);
+                alert('Erreur: ' + (error.message || JSON.stringify(error)));
+            }
+        }
+
+        function editAnnotation(ann) {
+            editingAnnotationId = ann.id;
+            document.getElementById('annotationModal').classList.add('show');
+
+            // Type
+            const typeMap = { period: 'period', day: 'day', time: 'time' };
+            document.getElementById('annotationType').value = typeMap[ann.event_type] || 'day';
+            updateDateOptions();
+
+            // Date (utiliser getFullYear/getMonth/getDate pour éviter le décalage UTC)
+            const startDate = new Date(ann.start_datetime);
+            const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+            document.getElementById('annotationStartDate').value = startStr;
+
+            if (ann.event_type === 'period' && ann.end_datetime) {
+                const endDate = new Date(ann.end_datetime);
+                const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+                document.getElementById('annotationEndDate').value = endStr;
+            }
+
+            if (ann.event_type === 'time') {
+                document.getElementById('annotationTime').value = startDate.toTimeString().slice(0, 5);
+            }
+
+            // Texte
+            document.getElementById('annotationText').value = ann.title;
+
+            // Changer le titre du modal
+            document.querySelector('.modal-header').textContent = 'Modifier l\'annotation';
+            document.querySelector('.modal-btn-submit').textContent = 'Modifier';
+        }
+
+        function openAnnotationModal() {
+            document.getElementById('annotationModal').classList.add('show');
+            
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            document.getElementById('annotationStartDate').value = today;
+            
+            updateDateOptions();
+        }
+
+        function closeAnnotationModal() {
+            document.getElementById('annotationModal').classList.remove('show');
+            document.getElementById('annotationText').value = '';
+            editingAnnotationId = null;
+            document.querySelector('.modal-header').textContent = 'Ajouter une annotation';
+            document.querySelector('.modal-btn-submit').textContent = 'Enregistrer';
+        }
+
+        function updateDateOptions() {
+            const type = document.getElementById('annotationType').value;
+            const startDateGroup = document.getElementById('startDateGroup');
+            const endDateGroup = document.getElementById('endDateGroup');
+            const timeGroup = document.getElementById('timeGroup');
+
+            if (type === 'period') {
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'block';
+                timeGroup.style.display = 'none';
+                document.querySelector('label[for="annotationStartDate"]').textContent = 'Premier jour';
+                document.querySelector('label[for="annotationEndDate"]').textContent = 'Dernier jour';
+            } else if (type === 'day') {
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'none';
+                timeGroup.style.display = 'none';
+                document.querySelector('label[for="annotationStartDate"]').textContent = 'Date';
+            } else if (type === 'time') {
+                startDateGroup.style.display = 'block';
+                endDateGroup.style.display = 'none';
+                timeGroup.style.display = 'block';
+                document.querySelector('label[for="annotationStartDate"]').textContent = 'Date';
+            }
+        }
+
+        async function saveAnnotation() {
+            const type = document.getElementById('annotationType').value;
+            const text = document.getElementById('annotationText').value.trim();
+            
+            if (!text) {
+                alert('Veuillez saisir un texte');
+                return;
+            }
+
+            let annotationData = {
+                user_id: window.currentUserId,
+                event_type: type,
+                title: text
+            };
+
+            if (type === 'period') {
+                const startDate = document.getElementById('annotationStartDate').value;
+                const endDate = document.getElementById('annotationEndDate').value;
+                if (!startDate || !endDate) {
+                    alert('Veuillez sélectionner les dates de début et de fin');
+                    return;
+                }
+                if (endDate < startDate) {
+                    alert('La date de fin doit être après la date de début');
+                    return;
+                }
+                annotationData.start_datetime = startDate + 'T00:00:00';
+                annotationData.end_datetime = endDate + 'T23:59:59';
+                annotationData.all_day = true;
+            } else if (type === 'day') {
+                const date = document.getElementById('annotationStartDate').value;
+                if (!date) {
+                    alert('Veuillez sélectionner une date');
+                    return;
+                }
+                annotationData.start_datetime = date + 'T00:00:00';
+                annotationData.end_datetime = date + 'T23:59:59';
+                annotationData.all_day = true;
+            } else if (type === 'time') {
+                const date = document.getElementById('annotationStartDate').value;
+                const time = document.getElementById('annotationTime').value;
+                if (!date || !time) {
+                    alert('Veuillez sélectionner une date et une heure');
+                    return;
+                }
+                annotationData.start_datetime = `${date}T${time}:00`;
+                const endObj = new Date(`${date}T${time}:00`);
+                endObj.setHours(endObj.getHours() + 1);
+                const endStr = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}T${String(endObj.getHours()).padStart(2, '0')}:${String(endObj.getMinutes()).padStart(2, '0')}:00`;
+                annotationData.end_datetime = endStr;
+                annotationData.all_day = false;
+            }
+
+            try {
+                let result;
+                if (editingAnnotationId) {
+                    result = await window.supabaseClient
+                        .from('agenda_events')
+                        .update(annotationData)
+                        .eq('id', editingAnnotationId)
+                        .select();
+                } else {
+                    result = await window.supabaseClient
+                        .from('agenda_events')
+                        .insert([annotationData])
+                        .select();
+                }
+
+                const { data, error } = result;
+                if (error) throw error;
+
+                console.log(editingAnnotationId ? '✓ Annotation modifiée' : '✓ Annotation enregistrée');
+                await loadAnnotations();
+                
+                if (currentView === 'week') {
+                    loadWeekView(selectedWeekStart);
+                } else {
+                    loadMonthView();
+                }
+                
+                closeAnnotationModal();
+            } catch (error) {
+                console.error('Erreur lors de l\'enregistrement:', error);
+                alert('Erreur: ' + (error.message || JSON.stringify(error)));
+            }
+        }
+
+        // === MENU AJOUT (+) ===
+        function toggleAddMenu() {
+            const menu = document.getElementById('addMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function hideAddMenu() {
+            document.getElementById('addMenu').style.display = 'none';
+        }
+
+        // Fermer le menu si on clique ailleurs
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.header-right')) {
+                hideAddMenu();
+            }
+        });
+
+        // === ENTRAINEMENTS ===
+        let editingTrainingId = null;
+        let preselectedTrainingActivityId = null;
+        let trainingWeekStart = null;
+
+        function openTrainingModal(preselectedActivityId = null) {
+            editingTrainingId = null;
+            // Mode semaine
+            document.getElementById('trainingWeekNav').style.display = 'flex';
+            document.getElementById('trainingWeekType').style.display = 'flex';
+            document.getElementById('trainingWeekGrid').style.display = 'flex';
+            document.getElementById('trainingEditFields').style.display = 'none';
+            document.getElementById('trainingModalHeader').textContent = 'Planifier la semaine';
+            document.getElementById('trainingSubmitBtn').textContent = 'Enregistrer';
+
+            // Démarrer sur la semaine courante
+            trainingWeekStart = getWeekStart(new Date());
+            buildTrainingWeekGrid();
+
+            document.getElementById('trainingModal').classList.add('show');
+        }
+
+        function trainingWeekPrev() {
+            trainingWeekStart.setDate(trainingWeekStart.getDate() - 7);
+            buildTrainingWeekGrid();
+        }
+
+        function trainingWeekNext() {
+            trainingWeekStart.setDate(trainingWeekStart.getDate() + 7);
+            buildTrainingWeekGrid();
+        }
+
+        function buildTrainingWeekGrid() {
+            const monthNames = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'];
+            const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+            const ws = new Date(trainingWeekStart);
+            const we = new Date(ws);
+            we.setDate(we.getDate() + 6);
+
+            document.getElementById('trainingWeekLabel').textContent =
+                `${ws.getDate()} ${monthNames[ws.getMonth()]} - ${we.getDate()} ${monthNames[we.getMonth()]} ${we.getFullYear()}`;
+
+            // Charger le type de semaine
+            const currentWeekType = getWeekType(ws);
+            document.querySelectorAll('input[name="weekType"]').forEach(r => r.checked = false);
+            if (currentWeekType) {
+                const radio = document.querySelector(`input[name="weekType"][value="${currentWeekType}"]`);
+                if (radio) radio.checked = true;
+            }
+
+            const grid = document.getElementById('trainingWeekGrid');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(ws);
+                day.setDate(day.getDate() + i);
+                const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+
+                const dayActivities = getActivitiesForDate(day);
+                // Chercher entraînement planifié (sans activité liée)
+                const existingPlanned = trainings.find(t => t.date === dateStr && !t.strava_activity_id);
+                // Chercher entraînements liés à des activités
+                const existingLinked = trainings.filter(t => t.date === dateStr && t.strava_activity_id);
+
+                if (dayActivities.length > 0) {
+                    // Jour avec activité(s) : afficher une ligne par activité avec sélecteur
+                    dayActivities.forEach((activity, actIdx) => {
+                        const linkedTraining = existingLinked.find(t => t.strava_activity_id === activity.strava_id);
+                        const dist = (activity.distance / 1000).toFixed(1);
+                        const icon = sportIcon(activity.sport_type);
+                        const time = new Date(activity.start_date_local).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+                        const row = document.createElement('div');
+                        row.className = 'training-week-row';
+                        row.dataset.activityId = activity.strava_id;
+                        row.dataset.date = dateStr;
+                        row.innerHTML = `
+                            <span class="training-week-day">${actIdx === 0 ? dayNames[i] : ''}</span>
+                            <span style="font-size: 11px; color: #333; min-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${icon} ${dist}km (${time})</span>
+                            <input type="text" class="training-week-seance" placeholder="Séance..."
+                                value="${linkedTraining && linkedTraining.title ? linkedTraining.title : ''}" data-date="${dateStr}" />
+                        `;
+                        grid.appendChild(row);
+                    });
+
+                    // Ajouter aussi une ligne planifiée si il y en a une (sans activité liée)
+                    if (existingPlanned) {
+                        const row = document.createElement('div');
+                        row.className = 'training-week-row';
+                        row.innerHTML = `
+                            <span class="training-week-day"></span>
+                            <select class="training-week-sport" data-date="${dateStr}">
+                                <option value="">-</option>
+                                <option value="Run" ${existingPlanned.sport_type === 'Run' ? 'selected' : ''}>🏃</option>
+                                <option value="Ride" ${existingPlanned.sport_type === 'Ride' ? 'selected' : ''}>🚴</option>
+                                <option value="NordicSki" ${existingPlanned.sport_type === 'NordicSki' ? 'selected' : ''}>⛷️</option>
+                            </select>
+                            <input type="number" class="training-week-km" placeholder="km" step="0.1" min="0"
+                                value="${existingPlanned.planned_distance || ''}" data-date="${dateStr}" />
+                            <input type="number" class="training-week-time" placeholder="min" step="1" min="0"
+                                value="${existingPlanned.planned_time || ''}" data-date="${dateStr}" />
+                            <input type="text" class="training-week-seance" placeholder="Séance..."
+                                value="${existingPlanned.title || ''}" data-date="${dateStr}" />
+                        `;
+                        grid.appendChild(row);
+                    }
+                } else {
+                    // Jour sans activité : ligne planification classique
+                    const existing = existingPlanned;
+                    const row = document.createElement('div');
+                    row.className = 'training-week-row';
+                    row.innerHTML = `
+                        <span class="training-week-day">${dayNames[i]}</span>
+                        <select class="training-week-sport" data-date="${dateStr}">
+                            <option value="">-</option>
+                            <option value="Run" ${existing && existing.sport_type === 'Run' ? 'selected' : ''}>🏃</option>
+                            <option value="Ride" ${existing && existing.sport_type === 'Ride' ? 'selected' : ''}>🚴</option>
+                            <option value="NordicSki" ${existing && existing.sport_type === 'NordicSki' ? 'selected' : ''}>⛷️</option>
+                        </select>
+                        <input type="number" class="training-week-km" placeholder="km" step="0.1" min="0"
+                            value="${existing && existing.planned_distance ? existing.planned_distance : ''}" data-date="${dateStr}" />
+                        <input type="number" class="training-week-time" placeholder="min" step="1" min="0"
+                            value="${existing && existing.planned_time ? existing.planned_time : ''}" data-date="${dateStr}" />
+                        <input type="text" class="training-week-seance" placeholder="Séance..."
+                            value="${existing && existing.title ? existing.title : ''}" data-date="${dateStr}" />
+                    `;
+                    grid.appendChild(row);
+                }
+            }
+        }
+
+        // Planning multi-semaines
+        const planningWeekTypes = {}; // weekStartStr -> type
+
+        function openPlanningModal() {
+            const monthNames = ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc'];
+            const list = document.getElementById('planningWeeksList');
+            list.innerHTML = '';
+
+            // Afficher les semaines de maintenant à 6 mois en avant
+            const now = new Date();
+            const start = new Date(now);
+            const dayOfWeek = start.getDay();
+            start.setDate(start.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+
+            const end = new Date(now);
+            end.setMonth(end.getMonth() + 6);
+
+            const week = new Date(start);
+            while (week <= end) {
+                const ws = new Date(week);
+                const we = new Date(ws);
+                we.setDate(we.getDate() + 6);
+                const wsStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+                const label = `${ws.getDate()} ${monthNames[ws.getMonth()]} - ${we.getDate()} ${monthNames[we.getMonth()]}`;
+                const currentType = getWeekType(ws) || '';
+
+                const isCurrentWeek = now >= ws && now <= we;
+                const row = document.createElement('div');
+                row.className = 'planning-week-row';
+                row.dataset.weekStart = wsStr;
+                row.innerHTML = `
+                    <span class="planning-week-label" style="${isCurrentWeek ? 'font-weight:700;color:#1e88e5;' : ''}">${label}${isCurrentWeek ? ' ●' : ''}</span>
+                    <div class="planning-week-btns">
+                        <button class="planning-type-btn ${currentType === 'bloc' ? 'active-bloc' : ''}" data-type="bloc" onclick="togglePlanningType(this, '${wsStr}', 'bloc')">Bloc</button>
+                        <button class="planning-type-btn ${currentType === 'recuperation' ? 'active-recuperation' : ''}" data-type="recuperation" onclick="togglePlanningType(this, '${wsStr}', 'recuperation')">Récup</button>
+                        <button class="planning-type-btn ${currentType === 'course' ? 'active-course' : ''}" data-type="course" onclick="togglePlanningType(this, '${wsStr}', 'course')">Course</button>
+                    </div>
+                `;
+                list.appendChild(row);
+
+                // Scroller jusqu'à la semaine actuelle
+                if (isCurrentWeek) {
+                    setTimeout(() => row.scrollIntoView({ block: 'center' }), 50);
+                }
+
+                week.setDate(week.getDate() + 7);
+            }
+
+            document.getElementById('planningModal').classList.add('show');
+        }
+
+        function togglePlanningType(btn, weekStartStr, type) {
+            const row = btn.closest('.planning-week-row');
+            const allBtns = row.querySelectorAll('.planning-type-btn');
+            const isActive = btn.classList.contains('active-' + type);
+
+            // Désactiver tous les boutons de la ligne
+            allBtns.forEach(b => {
+                b.className = 'planning-type-btn';
+            });
+
+            if (!isActive) {
+                btn.classList.add('active-' + type);
+                planningWeekTypes[weekStartStr] = type;
+            } else {
+                // Désactiver = supprimer le type
+                planningWeekTypes[weekStartStr] = null;
+            }
+        }
+
+        function closePlanningModal() {
+            document.getElementById('planningModal').classList.remove('show');
+        }
+
+        async function savePlanning() {
+            const rows = document.querySelectorAll('#planningWeeksList .planning-week-row');
+            for (const row of rows) {
+                const wsStr = row.dataset.weekStart;
+                const activeBtn = row.querySelector('.planning-type-btn[class*="active-"]');
+                const type = activeBtn ? activeBtn.dataset.type : null;
+                const existing = trainingWeeks.find(w => w.week_start === wsStr || w.week_start.substring(0, 10) === wsStr);
+
+                try {
+                    if (existing) {
+                        if (type) {
+                            await window.supabaseClient.from('training_weeks').update({ week_type: type }).eq('id', existing.id);
+                        } else {
+                            await window.supabaseClient.from('training_weeks').delete().eq('id', existing.id);
+                        }
+                    } else if (type) {
+                        await window.supabaseClient.from('training_weeks').insert([{
+                            user_id: window.currentUserId,
+                            week_start: wsStr,
+                            week_type: type
+                        }]);
+                    }
+                } catch (err) {
+                    console.error('Erreur save planning:', err);
+                }
+            }
+
+            await loadTrainingWeeks();
+            showMonthView();
+            closePlanningModal();
+        }
+
+        function updateTrainingActivitySelector() {
+            const dateStr = document.getElementById('trainingDate').value;
+            if (!dateStr) return;
+            const date = new Date(dateStr + 'T00:00:00');
+            const dayActivities = getActivitiesForDate(date);
+            const group = document.getElementById('trainingActivityGroup');
+            const select = document.getElementById('trainingActivity');
+            select.innerHTML = '';
+
+            const plannedFields = document.getElementById('trainingPlannedFields');
+            if (dayActivities.length === 0) {
+                group.style.display = 'none';
+                plannedFields.style.display = '';
+            } else {
+                plannedFields.style.display = 'none';
+                group.style.display = '';
+                dayActivities.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.strava_id;
+                    const dist = (a.distance / 1000).toFixed(1);
+                    const icon = sportIcon(a.sport_type);
+                    const time = new Date(a.start_date_local).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    opt.textContent = `${icon} ${a.name} - ${dist}km (${time})`;
+                    select.appendChild(opt);
+                });
+                if (preselectedTrainingActivityId) {
+                    select.value = preselectedTrainingActivityId;
+                }
+            }
+        }
+
+        function closeTrainingModal() {
+            document.getElementById('trainingModal').classList.remove('show');
+            editingTrainingId = null;
+        }
+
+        async function saveTraining() {
+            // Mode édition simple
+            if (editingTrainingId) {
+                const date = document.getElementById('trainingDate').value;
+                const text = document.getElementById('trainingText').value.trim();
+                const kmVal = document.getElementById('trainingKm').value;
+                const timeVal = document.getElementById('trainingTime').value;
+                const sportVal = document.getElementById('trainingSport').value;
+
+                const dateObj = new Date(date + 'T00:00:00');
+                const dayActivities = getActivitiesForDate(dateObj);
+                let activityId = null;
+                if (dayActivities.length === 1) activityId = dayActivities[0].strava_id;
+                else if (dayActivities.length > 1) activityId = parseInt(document.getElementById('trainingActivity').value);
+
+                const trainingData = {
+                    user_id: window.currentUserId,
+                    date, title: text, strava_activity_id: activityId,
+                    planned_distance: kmVal ? parseFloat(kmVal) : null,
+                    planned_time: timeVal ? parseInt(timeVal) : null,
+                    sport_type: activityId ? null : sportVal
+                };
+
+                try {
+                    const { error } = await window.supabaseClient
+                        .from('trainings').update(trainingData).eq('id', editingTrainingId);
+                    if (error) throw error;
+                } catch (error) {
+                    alert('Erreur: ' + (error.message || JSON.stringify(error)));
+                    return;
+                }
+            } else {
+                // Mode semaine : sauvegarder toutes les lignes remplies
+                const rows = document.querySelectorAll('.training-week-row');
+
+                for (const row of rows) {
+                    const activityId = row.dataset.activityId ? parseInt(row.dataset.activityId) : null;
+
+                    if (activityId) {
+                        // Ligne liée à une activité : sauvegarder seulement la séance
+                        const seance = row.querySelector('.training-week-seance').value.trim();
+                        const dateStr = row.dataset.date;
+                        const existingLinked = trainings.find(t => t.date === dateStr && t.strava_activity_id === activityId);
+
+                        try {
+                            if (existingLinked && !seance) {
+                                // Supprimer si séance vidée
+                                const { error } = await window.supabaseClient.from('trainings').delete().eq('id', existingLinked.id);
+                                if (error) throw error;
+                            } else if (seance) {
+                                const data = {
+                                    user_id: window.currentUserId,
+                                    date: dateStr,
+                                    title: seance,
+                                    strava_activity_id: activityId,
+                                    sport_type: null,
+                                    planned_distance: null,
+                                    planned_time: null
+                                };
+                                if (existingLinked) {
+                                    const { error } = await window.supabaseClient.from('trainings').update(data).eq('id', existingLinked.id);
+                                    if (error) throw error;
+                                } else {
+                                    const { error } = await window.supabaseClient.from('trainings').insert([data]);
+                                    if (error) throw error;
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Erreur save training (activité):', error);
+                            alert('Erreur: ' + (error.message || JSON.stringify(error)));
+                            return;
+                        }
+                    } else {
+                        // Ligne planification classique (sans activité)
+                        const sportEl = row.querySelector('.training-week-sport');
+                        if (!sportEl) continue;
+                        const sport = sportEl.value;
+                        const km = row.querySelector('.training-week-km').value;
+                        const time = row.querySelector('.training-week-time').value;
+                        const seance = row.querySelector('.training-week-seance').value.trim();
+                        const dateStr = sportEl.dataset.date;
+
+                        const existing = trainings.find(t => t.date === dateStr && !t.strava_activity_id);
+                        const hasData = sport || km || time || seance;
+
+                        // Validation : si sport/km/temps renseigné, sport obligatoire + au moins km ou temps
+                        if ((sport || km || time) && (!sport || (!km && !time))) {
+                            const dayLabel = row.querySelector('.training-week-day').textContent;
+                            alert(`${dayLabel} : sport obligatoire et au moins une distance ou un temps`);
+                            row.style.outline = '2px solid #e53935';
+                            setTimeout(() => row.style.outline = '', 2000);
+                            return;
+                        }
+
+                        try {
+                            if (existing && !hasData) {
+                                const { error } = await window.supabaseClient.from('trainings').delete().eq('id', existing.id);
+                                if (error) throw error;
+                            } else if (hasData) {
+                                const data = {
+                                    user_id: window.currentUserId,
+                                    date: dateStr,
+                                    title: seance || null,
+                                    sport_type: sport || null,
+                                    planned_distance: km ? parseFloat(km) : null,
+                                    planned_time: time ? parseInt(time) : null,
+                                    strava_activity_id: null
+                                };
+                                if (existing) {
+                                    const { error } = await window.supabaseClient.from('trainings').update(data).eq('id', existing.id);
+                                    if (error) throw error;
+                                } else {
+                                    const { error } = await window.supabaseClient.from('trainings').insert([data]);
+                                    if (error) throw error;
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Erreur save training:', error);
+                            alert('Erreur: ' + (error.message || JSON.stringify(error)));
+                            return;
+                        }
+                    }
+                }
+
+                // Sauvegarder le type de semaine
+                const weekTypeRadio = document.querySelector('input[name="weekType"]:checked');
+                const weekType = weekTypeRadio ? weekTypeRadio.value : null;
+                const ws = new Date(trainingWeekStart);
+                const weekStartStr = `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`;
+                const existingWeek = trainingWeeks.find(w => w.week_start === weekStartStr);
+
+                try {
+                    if (weekType) {
+                        if (existingWeek) {
+                            const { error } = await window.supabaseClient
+                                .from('training_weeks').update({ week_type: weekType }).eq('id', existingWeek.id);
+                            if (error) throw error;
+                        } else {
+                            const { error } = await window.supabaseClient
+                                .from('training_weeks').insert([{ user_id: window.currentUserId, week_start: weekStartStr, week_type: weekType }]);
+                            if (error) throw error;
+                        }
+                    } else if (existingWeek) {
+                        const { error } = await window.supabaseClient
+                            .from('training_weeks').delete().eq('id', existingWeek.id);
+                        if (error) throw error;
+                    }
+                } catch (error) {
+                    console.error('Erreur save week type:', error);
+                    alert('Erreur type semaine: ' + (error.message || JSON.stringify(error)));
+                }
+            }
+
+            await Promise.all([loadTrainings(), loadTrainingWeeks()]);
+            if (currentView === 'week') loadWeekView(selectedWeekStart);
+            else loadMonthView();
+            closeTrainingModal();
+        }
+
+        async function loadTrainings() {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('trainings')
+                    .select('*')
+                    .order('date', { ascending: true });
+
+                if (error) throw error;
+                trainings = data || [];
+                console.log(`✓ ${trainings.length} entrainements chargés`);
+            } catch (error) {
+                console.error('Erreur chargement entrainements:', error);
+                trainings = [];
+            }
+        }
+
+        async function loadTrainingWeeks() {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('training_weeks')
+                    .select('*');
+
+                if (error) throw error;
+                trainingWeeks = data || [];
+                console.log(`✓ ${trainingWeeks.length} semaines type chargées`);
+            } catch (error) {
+                console.error('Erreur chargement semaines type:', error);
+                trainingWeeks = [];
+            }
+        }
+
+        function getWeekType(weekStartDate) {
+            const d = new Date(weekStartDate);
+            d.setHours(0, 0, 0, 0);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const found = trainingWeeks.find(w => {
+                const ws = w.week_start.substring(0, 10);
+                return ws === dateStr;
+            });
+            if (trainingWeeks.length > 0) {
+                console.log('getWeekType:', dateStr, '→', found ? found.week_type : 'null', '| DB weeks:', trainingWeeks.map(w => w.week_start.substring(0, 10)));
+            }
+            return found ? found.week_type : null;
+        }
+
+        function getTrainingForActivity(stravaId) {
+            return trainings.find(t => t.strava_activity_id === stravaId);
+        }
+
+        function getTrainingsForDate(date) {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return trainings.filter(t => t.date === dateStr);
+        }
+
+        function editTraining(training) {
+            editingTrainingId = training.id;
+            preselectedTrainingActivityId = training.strava_activity_id;
+
+            // Mode édition simple
+            document.getElementById('trainingWeekNav').style.display = 'none';
+            document.getElementById('trainingWeekType').style.display = 'none';
+            document.getElementById('trainingWeekGrid').style.display = 'none';
+            document.getElementById('trainingEditFields').style.display = '';
+            document.getElementById('trainingModalHeader').textContent = 'Modifier l\'entrainement';
+            document.getElementById('trainingSubmitBtn').textContent = 'Modifier';
+
+            document.getElementById('trainingDate').value = training.date;
+            document.getElementById('trainingText').value = training.title || '';
+            document.getElementById('trainingKm').value = training.planned_distance || '';
+            document.getElementById('trainingTime').value = training.planned_time || '';
+            document.getElementById('trainingSport').value = training.sport_type || 'Run';
+            updateTrainingActivitySelector();
+
+            document.getElementById('trainingModal').classList.add('show');
+        }
+
+        async function deleteTraining(id) {
+            try {
+                const { error } = await window.supabaseClient
+                    .from('trainings')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                console.log('✓ Entrainement supprimé');
+                await loadTrainings();
+
+                if (currentView === 'week') {
+                    loadWeekView(selectedWeekStart);
+                } else {
+                    loadMonthView();
+                }
+            } catch (error) {
+                console.error('Erreur suppression entrainement:', error);
+            }
+        }
+
+        // === INITIALISATION ===
+        async function initializeApp() {
+            console.log('=== INITIALISATION DE L\'APPLICATION ===');
+
+            try {
+                // Auth check
+                await requireAuth();
+                console.log('✓ Authentifie:', window.currentUserEmail);
+
+                // Handle Strava OAuth callback
+                const urlParams = new URLSearchParams(window.location.search);
+                const stravaCode = urlParams.get('code');
+                if (stravaCode) {
+                    console.log('OAuth callback Strava detecte...');
+                    await handleStravaCallback(stravaCode);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    console.log('✓ Strava connecte');
+                }
+
+                // Check Strava connection status
+                const stravaTokens = await getUserStravaTokens();
+                window.stravaConnected = !!stravaTokens;
+
+                console.log('1. Chargement du cache...');
+                loadCacheFromStorage();
+                
+                console.log('2. Chargement des annotations et entrainements...');
+                await Promise.all([loadAnnotations(), loadTrainings(), loadTrainingWeeks()]);
+
+                console.log('3. Chargement des activités...');
+                const { data: activitiesData, error: activitiesError } = await window.supabaseClient
+                    .from('strava_activities')
+                    .select('*')
+                    .gte('start_date_local', '2026-01-01')
+                    .lte('start_date_local', '2026-12-31')
+                    .order('start_date_local', { ascending: false });
+                if (activitiesError) throw activitiesError;
+                activities = activitiesData;
+                console.log(`✓ ${activities.length} activités chargées`);
+
+                console.log('4. Affichage de la vue mois...');
+                showMonthView();
+                
+                console.log('=== APPLICATION INITIALISÉE ===');
+            } catch (error) {
+                console.error('❌ ERREUR lors de l\'initialisation:', error);
+                const errorDiv = document.getElementById('monthCalendar');
+                errorDiv.textContent = '';
+                const noData = document.createElement('div');
+                noData.className = 'no-data';
+                noData.textContent = 'Erreur de chargement: ' + error.message;
+                errorDiv.appendChild(noData);
+            }
+        }
+
+        // === SYNC STRAVA ===
+        async function syncStrava() {
+            if (!window.stravaConnected) {
+                connectStrava();
+                return;
+            }
+
+            console.log('Sync en cours...');
+
+            try {
+                const token = await getStravaAccessToken();
+
+                // Fetch recent activities (last 10 days)
+                const after = Math.floor((Date.now() - 10 * 24 * 3600 * 1000) / 1000);
+                const activitiesRes = await fetch(
+                    `https://www.strava.com/api/v3/athlete/activities?per_page=200&after=${after}`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+                const stravaActivities = await activitiesRes.json();
+                console.log(`Strava: ${stravaActivities.length} activites recentes`);
+
+                // Upsert into Supabase
+                let synced = 0;
+                for (const a of stravaActivities) {
+                    const row = {
+                        user_id: window.currentUserId,
+                        strava_id: a.id,
+                        name: a.name,
+                        sport_type: a.sport_type || a.type,
+                        distance: a.distance,
+                        moving_time: a.moving_time,
+                        elapsed_time: a.elapsed_time,
+                        total_elevation_gain: a.total_elevation_gain,
+                        start_date: a.start_date,
+                        start_date_local: a.start_date_local,
+                        average_speed: a.average_speed,
+                        max_speed: a.max_speed,
+                        average_heartrate: a.average_heartrate,
+                        max_heartrate: a.max_heartrate,
+                        elev_high: a.elev_high,
+                        elev_low: a.elev_low,
+                        kudos_count: a.kudos_count || 0,
+                        achievement_count: a.achievement_count || 0
+                    };
+                    const { error } = await window.supabaseClient
+                        .from('strava_activities')
+                        .upsert(row, { onConflict: 'user_id,strava_id' });
+                    if (!error) synced++;
+                }
+
+                btn.textContent = `✓ ${synced} sync`;
+                console.log(`Supabase: ${synced} activites synchronisees`);
+
+                setTimeout(() => window.location.reload(), 1000);
+
+            } catch (error) {
+                console.error('Erreur sync:', error);
+                if (error.message.includes('non connecte')) {
+                    connectStrava();
+                    return;
+                }
+                alert('Erreur sync: ' + error.message);
+            }
+        }
+
+        // === LAZY-LOAD STREAMS DEPUIS STRAVA API ===
+        async function fetchStreamsFromStrava(stravaId) {
+            try {
+                const token = await getStravaAccessToken();
+                const streamTypes = 'latlng,altitude,time,distance,heartrate,velocity_smooth,grade_smooth,cadence,watts,temp';
+                const res = await fetch(
+                    `https://www.strava.com/api/v3/activities/${stravaId}/streams?keys=${streamTypes}&key_by_type=true`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+                if (res.status === 404) return [];
+                if (!res.ok) throw new Error(`Strava API error: ${res.status}`);
+                const data = await res.json();
+
+                if (!data.latlng || !data.latlng.data) return [];
+
+                const latlng = data.latlng.data;
+                const altitude = data.altitude?.data || [];
+                const time = data.time?.data || [];
+                const distance = data.distance?.data || [];
+                const heartrate = data.heartrate?.data || [];
+                const velocity = data.velocity_smooth?.data || [];
+                const grade = data.grade_smooth?.data || [];
+                const cadence = data.cadence?.data || [];
+                const watts = data.watts?.data || [];
+                const temp = data.temp?.data || [];
+
+                const points = latlng.map((ll, i) => ({
+                    user_id: window.currentUserId,
+                    strava_id: stravaId,
+                    stream_index: i,
+                    latitude: ll[0],
+                    longitude: ll[1],
+                    altitude: altitude[i] ?? null,
+                    time: time[i] ?? null,
+                    distance: distance[i] ?? null,
+                    heartrate: heartrate[i] ?? null,
+                    velocity_smooth: velocity[i] ?? null,
+                    grade_smooth: grade[i] ?? null,
+                    cadence: cadence[i] ?? null,
+                    watts: watts[i] ?? null,
+                    temp: temp[i] ?? null
+                }));
+
+                // Save to Supabase in batches
+                for (let i = 0; i < points.length; i += 500) {
+                    const batch = points.slice(i, i + 500);
+                    await window.supabaseClient
+                        .from('strava_activity_streams')
+                        .upsert(batch, { onConflict: 'user_id,strava_id,stream_index' });
+                }
+
+                return points;
+            } catch (error) {
+                console.warn('Could not fetch streams from Strava:', error);
+                return [];
+            }
+        }
+
+        // === LAZY-LOAD LAPS DEPUIS STRAVA API ===
+        async function fetchLapsFromStrava(stravaId) {
+            try {
+                const token = await getStravaAccessToken();
+                const res = await fetch(
+                    `https://www.strava.com/api/v3/activities/${stravaId}/laps`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+                if (!res.ok) return [];
+                const laps = await res.json();
+
+                const formatted = laps.map(lap => ({
+                    user_id: window.currentUserId,
+                    lap_id: lap.id,
+                    activity_id: stravaId,
+                    name: lap.name || '',
+                    lap_index: lap.lap_index || 0,
+                    distance: lap.distance || 0,
+                    moving_time: lap.moving_time || 0,
+                    elapsed_time: lap.elapsed_time || 0,
+                    total_elevation_gain: lap.total_elevation_gain || 0,
+                    start_date: lap.start_date,
+                    start_date_local: lap.start_date_local,
+                    average_speed: lap.average_speed,
+                    max_speed: lap.max_speed,
+                    average_heartrate: lap.average_heartrate,
+                    max_heartrate: lap.max_heartrate,
+                    average_cadence: lap.average_cadence,
+                    pace_zone: lap.pace_zone,
+                    start_index: lap.start_index,
+                    end_index: lap.end_index
+                }));
+
+                for (const lapData of formatted) {
+                    await window.supabaseClient
+                        .from('strava_laps')
+                        .upsert(lapData, { onConflict: 'user_id,lap_id' });
+                }
+
+                return formatted;
+            } catch (error) {
+                console.warn('Could not fetch laps from Strava:', error);
+                return [];
+            }
+        }
+
+        // Lancer l'initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
+    </script>
+</body>
+</html>

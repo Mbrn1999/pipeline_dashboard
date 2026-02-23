@@ -100,6 +100,19 @@ def get_activity_streams(strava_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/activity/<int:strava_id>/laps')
+def get_activity_laps(strava_id):
+    """Récupère les laps d'une activité"""
+    try:
+        response = supabase.table("strava_laps").select("*").eq(
+            "activity_id", strava_id
+        ).order("lap_index").execute()
+
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/stats')
 def get_stats():
     """Récupère les statistiques globales"""
