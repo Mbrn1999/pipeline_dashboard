@@ -46,7 +46,7 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            min-height: 44px;
+            height: 44px;
         }
 
         .header-left {
@@ -190,6 +190,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 70px;
             min-height: 120px;
             border-left: 4px solid transparent;
         }
@@ -251,6 +252,9 @@
             text-overflow: ellipsis;
             font-weight: 500;
         }
+
+        .day-act-mobile { display: none; }
+        .day-act-desktop { display: inline; }
 
         .day-activity.run {
             background: #FBE9E7;
@@ -353,6 +357,10 @@
             background: white;
         }
 
+        .day-container:last-child {
+            border-bottom: none;
+        }
+
         .day-header {
             background: #e8e8e8;
             padding: 10px 20px;
@@ -403,11 +411,30 @@
             transition: all 0.2s;
             border-left: 3px solid transparent;
             display: flex;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
+            gap: 0;
             background: white;
             border-radius: 8px;
             max-width: 95%;
+        }
+
+        .activity-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .activity-inline-detail {
+            display: none;
+            width: 100%;
+            margin-top: 8px;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 6px;
+        }
+
+        .activity-inline-detail.open {
+            display: block;
         }
 
         .activity-item:hover {
@@ -474,14 +501,19 @@
             color: #999;
             font-size: 11px;
             white-space: nowrap;
+            margin-left: auto;
         }
 
         .main-content {
             flex: 1;
-            display: flex;
+            display: none;
             flex-direction: column;
             overflow: hidden;
             background: #f5f5f5;
+        }
+
+        .main-content.visible {
+            display: flex;
         }
 
         .map-container {
@@ -916,71 +948,112 @@
 
         /* ===== VERSION MOBILE ===== */
         @media (max-width: 768px) {
-            /* Header compact mobile */
-            .header { padding: 3px 6px; }
-            .header-row {
-                min-height: 28px;
-                position: static;
-                justify-content: space-between;
-            }
-            .header-left { position: static; }
-            .header-right { position: static; }
-            .month-nav { gap: 4px; padding: 2px 0; flex: 1; }
+            /* Header mobile : même hauteur totale que settings (52px) */
+            .header { padding: 6px 12px; }
+            .header-row { height: 40px; position: relative; }
+            .header-left { position: absolute; left: 0; }
+            .header-right { position: absolute; right: 0; }
+            .month-nav { gap: 6px; padding: 0; flex: 1; justify-content: center; }
             .month-nav-btn {
-                padding: 4px 8px;
-                font-size: 14px;
-                border-width: 1px;
+                padding: 6px 12px;
+                font-size: 13px;
+                border-width: 1.5px;
                 min-width: 0;
-                white-space: nowrap;
-                overflow: hidden;
-                max-width: 32px;
             }
-            .month-title { font-size: 12px; min-width: auto; }
-            .back-to-month-btn { padding: 4px 8px; font-size: 11px; border-width: 1px; }
+            .btn-label { display: none; }
+            .week-nav-btn { display: none; }
+            .month-title { font-size: 17px; min-width: auto; font-weight: 600; }
+            .back-to-month-btn { padding: 6px 12px; font-size: 13px; border-width: 1.5px; }
             .hide-mobile { display: none; }
-            .clear-cache-btn { padding: 4px 10px; font-size: 11px; }
-            .add-annotation-btn { width: 28px; height: 28px; font-size: 16px; }
+            .clear-cache-btn { padding: 6px 12px; font-size: 13px; border-width: 1.5px; }
+            .add-annotation-btn { width: 32px; height: 32px; font-size: 18px; border-width: 1.5px; }
             .week-type-badge { font-size: 10px; padding: 2px 6px; margin-left: 2px; }
 
-            /* Calendrier mois compact */
-            #monthView { padding: 4px; }
-            .month-calendar { gap: 2px; margin-top: 4px; }
-            .weekly-km-chart-container { height: 80px; margin-top: 4px; padding: 4px 6px; }
+            /* Calendrier mois compact — remplit tout l'écran */
+            #monthView {
+                padding: 4px;
+                height: calc(100dvh - 52px);
+                overflow: hidden;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                max-width: 100%;
+                margin: 0;
+            }
+            .month-calendar {
+                gap: 2px;
+                margin-top: 3px;
+                flex: 1;
+                grid-auto-rows: auto;
+                min-height: 0;
+                overflow-y: auto;
+                align-content: start;
+            }
+            .weekly-km-chart-container { height: 100px; margin-top: 3px; padding: 5px 8px; flex-shrink: 0; }
             .calendar-day-header { padding: 3px; font-size: 10px; border-radius: 4px; }
             .calendar-day {
-                min-height: 60px;
-                padding: 2px 3px;
+                min-height: 56px;
+                padding: 4px 4px;
                 border-radius: 4px;
                 border-width: 1px;
                 border-left-width: 3px;
+                overflow: hidden;
             }
             .calendar-day:hover { transform: none; box-shadow: none; }
-            .day-number { font-size: 11px; margin-bottom: 2px; }
-            .day-activity { font-size: 8px; padding: 1px 2px; gap: 1px; border-radius: 3px; }
+            .day-number { font-size: 11px; margin-bottom: 3px; }
+            .day-activity {
+                font-size: 8px;
+                padding: 2px 3px;
+                border-radius: 3px;
+                display: block;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 100%;
+            }
+            .day-act-desktop { display: none; }
             .day-annotation { font-size: 7px; padding: 1px 3px; }
 
-            /* Vue semaine : empilée verticalement */
-            .container { flex-direction: column; }
+            /* Vue semaine : scroll vertical full screen */
+            #weekView { overflow-y: auto; height: calc(100dvh - 52px); }
+            .container { flex-direction: column; overflow: visible; }
             .left-panel {
                 width: 100%;
-                max-height: 180px;
-                overflow-y: auto;
+                max-height: none;
+                overflow-y: visible;
                 border-right: none;
-                border-bottom: 1px solid #e0e0e0;
+                border-bottom: none;
             }
             .day-header { padding: 6px 10px; font-size: 12px; gap: 6px; }
-            .activity-item { padding: 6px 8px; margin: 3px 6px; gap: 6px; }
+            .activity-item { padding: 6px 8px; margin: 3px 6px; max-width: calc(100% - 12px); }
+            .activity-header { gap: 6px; }
             .activity-item:hover { transform: none; }
             .planned-training-item { padding: 6px 8px; margin: 3px 6px; gap: 6px; }
             .activity-icon { font-size: 18px; min-width: 24px; }
             .activity-name { font-size: 12px; margin-bottom: 2px; }
             .activity-stats { gap: 6px; font-size: 10px; }
 
-            /* Carte et graphique */
-            .main-content { overflow: visible; }
-            .map-container { height: 250px; flex: none; }
-            .chart-container { height: 150px; padding: 8px 8px 0 8px; }
-            .laps-list { height: 45px; overflow-x: auto; }
+            #closeMapBtn { display: block !important; }
+            #mapResizeHandle { display: flex !important; }
+
+            /* Bottom sheet fixe : carte + graphique */
+            .main-content {
+                position: fixed;
+                bottom: 0; left: 0; right: 0;
+                height: 290px;
+                z-index: 300;
+                background: white;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 -3px 20px rgba(0,0,0,0.18);
+                border-radius: 12px 12px 0 0;
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+            }
+            .main-content.mobile-visible { transform: translateY(0); }
+            .map-container { height: 180px; flex: none; border-radius: 12px 12px 0 0; overflow: hidden; }
+            .chart-container { height: 110px; padding: 6px 8px 0 8px; }
+            .laps-container { display: none !important; }
 
             /* Modales */
             .annotation-modal-content {
@@ -1010,22 +1083,22 @@
         <div class="header-row">
             <div class="header-left">
                 <!-- Mois : bouton cache / Semaine : bouton retour -->
-                <a href="settings.html" class="clear-cache-btn" style="text-decoration:none;" title="Parametres">⚙️</a>
-                <button id="btnBackToMonth" class="back-to-month-btn" style="display: none;" onclick="showMonthView()">← Retour au mois</button>
+                <a id="settingsBtn" href="settings.html" class="clear-cache-btn" style="text-decoration:none;" title="Parametres">⚙️</a>
+                <button id="btnBackToMonth" class="back-to-month-btn" style="display: none;" onclick="showMonthView()">←<span class="btn-label"> Retour au mois</span></button>
             </div>
 
             <!-- Mois : navigation -->
             <div id="monthViewHeader" class="month-nav">
-                <button class="month-nav-btn" onclick="previousMonth()">← Mois précédent</button>
+                <button class="month-nav-btn" onclick="previousMonth()"><span class="btn-arrow">←</span><span class="btn-label"> Mois précédent</span></button>
                 <div class="month-title" id="monthTitle">Février 2026</div>
-                <button class="month-nav-btn" onclick="nextMonth()">Mois suivant →</button>
+                <button class="month-nav-btn" onclick="nextMonth()"><span class="btn-label">Mois suivant </span><span class="btn-arrow">→</span></button>
             </div>
 
             <!-- Semaine : navigation -->
             <div id="weekViewHeader" style="display: none;" class="month-nav">
-                <button class="month-nav-btn" onclick="previousWeek()">← Semaine préc.</button>
+                <button class="month-nav-btn week-nav-btn" onclick="previousWeek()"><span class="btn-arrow">←</span><span class="btn-label"> Semaine préc.</span></button>
                 <div class="month-title" id="weekTitle">Semaine en cours</div><span id="weekTypeBadge" class="week-type-badge" style="display:none;"></span>
-                <button class="month-nav-btn" onclick="nextWeek()">Semaine suiv. →</button>
+                <button class="month-nav-btn week-nav-btn" onclick="nextWeek()"><span class="btn-label">Semaine suiv. </span><span class="btn-arrow">→</span></button>
             </div>
 
             <div class="header-right">
@@ -1062,6 +1135,10 @@
             </div>
 
             <div class="main-content">
+                <div id="mapResizeHandle" style="display:none;position:absolute;top:0;left:0;right:0;height:22px;z-index:401;cursor:ns-resize;display:flex;align-items:center;justify-content:center;">
+                    <div style="width:36px;height:4px;background:rgba(0,0,0,0.2);border-radius:2px;margin-top:6px;"></div>
+                </div>
+                <button id="closeMapBtn" onclick="closeMapPanel()" style="display:none;position:absolute;top:8px;right:10px;z-index:400;background:rgba(0,0,0,0.45);color:white;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;line-height:1;cursor:pointer;">✕</button>
                 <div class="map-container">
                     <div id="map"></div>
                 </div>
@@ -1315,6 +1392,7 @@
             document.getElementById('monthViewHeader').style.display = 'flex';
             document.getElementById('weekViewHeader').style.display = 'none';
             document.getElementById('btnBackToMonth').style.display = 'none';
+            document.getElementById('settingsBtn').style.display = '';
             loadMonthView();
         }
 
@@ -1328,14 +1406,17 @@
             document.getElementById('monthViewHeader').style.display = 'none';
             document.getElementById('weekViewHeader').style.display = 'flex';
             document.getElementById('btnBackToMonth').style.display = 'block';
-            
-            // Initialiser la carte si nécessaire, puis forcer le recalcul des dimensions
-            if (!map) {
-                initMap();
+            document.getElementById('settingsBtn').style.display = 'none';
+            // Cacher map/profil au changement de semaine
+            const mc = document.querySelector('.main-content');
+            mc.classList.remove('mobile-visible', 'visible');
+            if (window.innerWidth <= 768) {
+                document.getElementById('weekView').style.paddingBottom = '';
             }
-            setTimeout(() => {
-                if (map) map.invalidateSize();
-            }, 50);
+
+            // Initialiser la carte si nécessaire, puis forcer le recalcul des dimensions
+            if (!map) initMap();
+            setTimeout(() => { if (map) map.invalidateSize(); }, 50);
 
             loadWeekView(weekStartDate);
         }
@@ -1364,6 +1445,30 @@
             selectedWeekStart = next;
             loadWeekView(next);
         }
+
+        // === SWIPE GAUCHE/DROITE ===
+        function initSwipe(elementId, onLeft, onRight) {
+            const el = document.getElementById(elementId);
+            let startX = null, startY = null;
+            el.addEventListener('touchstart', e => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            el.addEventListener('touchend', e => {
+                if (startX === null) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                const dy = e.changedTouches[0].clientY - startY;
+                // Déclencher seulement si mouvement horizontal dominant (pas un scroll vertical)
+                if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2.5) {
+                    if (dx < 0) onLeft();
+                    else onRight();
+                }
+                startX = null; startY = null;
+            }, { passive: true });
+        }
+
+        initSwipe('monthView', nextMonth, previousMonth);
+        initSwipe('weekView', nextWeek, previousWeek);
 
         function updateMonthTitle() {
             const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
@@ -1398,8 +1503,9 @@
             const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
             startDay.setDate(startDay.getDate() - daysToSubtract);
 
-            // Calculer le nombre de cellules nécessaires
-            const totalDays = Math.ceil((lastDay.getDate() + daysToSubtract) / 7) * 7;
+            // Mobile : toujours 6 semaines. Desktop : nombre naturel de semaines du mois
+            const naturalDays = Math.ceil((lastDay.getDate() + daysToSubtract) / 7) * 7;
+            const totalDays = window.innerWidth <= 768 ? 42 : naturalDays;
             const weekRows = totalDays / 7;
             calendar.style.gridTemplateRows = `auto ${Array(weekRows).fill('1fr').join(' ')}`;
 
@@ -1424,10 +1530,14 @@
             const calendarEnd = new Date(calendarStart);
             calendarEnd.setDate(calendarEnd.getDate() + totalDays - 1);
 
-            // Partir d'il y a 6 mois (lundi)
+            // Semaines passées/futures selon la taille d'écran
+            const isMobile = window.innerWidth <= 768;
+            const weeksPast = 10;
+            const weeksFuture = 5;
+
             const now = new Date();
             const oneYearAgo = new Date(now);
-            oneYearAgo.setMonth(oneYearAgo.getMonth() - 6);
+            oneYearAgo.setDate(oneYearAgo.getDate() - weeksPast * 7);
             const dayOfWeek = oneYearAgo.getDay();
             oneYearAgo.setDate(oneYearAgo.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
 
@@ -1456,9 +1566,8 @@
             const borderColors = [];
 
             const weekStart = new Date(oneYearAgo);
-            // Aller jusqu'à la fin des semaines planifiées (max 2 mois dans le futur)
             const chartEnd = new Date(now);
-            chartEnd.setMonth(chartEnd.getMonth() + 2);
+            chartEnd.setDate(chartEnd.getDate() + weeksFuture * 7);
             while (weekStart <= chartEnd) {
                 const weekEnd = new Date(weekStart);
                 weekEnd.setDate(weekEnd.getDate() + 6);
@@ -1524,6 +1633,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { top: 12 } },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
@@ -1539,10 +1649,11 @@
                     scales: {
                         y: {
                             stacked: true,
-                            beginAtZero: true,
+                            min: (() => { const t = data.map((v,i)=>(v||0)+(plannedData[i]||0)).filter(v=>v>0); return t.length ? Math.max(0, Math.min(...t)*0.85) : 0; })(),
+                            max: (() => { const t = data.map((v,i)=>(v||0)+(plannedData[i]||0)); const m = t.length ? Math.max(...t) : 0; return m > 0 ? m * 1.15 : 10; })(),
                             ticks: {
-                                stepSize: (() => { const m = Math.max(...data.map((v, i) => v + plannedData[i])); return m < 10 ? 1 : m < 20 ? 2 : 5; })(),
-                                callback: v => `${v}`,
+                                stepSize: 20,
+                                callback: v => `${Math.round(v)}`,
                                 font: { size: 10 }
                             },
                             grid: { color: '#f0f0f0' }
@@ -1572,20 +1683,13 @@
                             const realise = chart.data.datasets[0].data[i];
                             const planifie = chart.data.datasets[1].data[i];
                             const total = realise + planifie;
-                            if (total > 0) {
-                                // Prendre le haut de la barre la plus haute (planifié si > 0, sinon réalisé)
-                                const topBar = planifie > 0 ? meta1.data[i] : bar;
-                                const y = topBar.y - 4;
-                                if (y < chartArea.top + 10) {
-                                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-                                    ctx.textBaseline = 'top';
-                                    ctx.fillText(Math.round(total), bar.x, topBar.y + 4);
-                                } else {
-                                    ctx.fillStyle = '#555';
-                                    ctx.textBaseline = 'bottom';
-                                    ctx.fillText(Math.round(total), bar.x, y);
-                                }
-                            }
+                            if (total === 0) return; // Pas de label pour les semaines à 0
+                            const topBar = planifie > 0 ? meta1.data[i] : bar;
+                            // Placer le label au-dessus de la barre, dans le padding si nécessaire
+                            const labelY = Math.max(chartArea.top - 2, topBar.y - 2);
+                            ctx.fillStyle = '#555';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(Math.round(total), bar.x, labelY);
                         });
                         ctx.restore();
                     }
@@ -1634,7 +1738,7 @@
                 const time = formatDuration(activity.moving_time);
                 const distance = (activity.distance / 1000).toFixed(1);
                 
-                activityEl.textContent = `${icon} ${time} ${distance}km`;
+                activityEl.innerHTML = `${icon} ${time}<span class="day-act-desktop"> ${distance}km</span>`;
                 
                 // ✅ CORRECTION : Click sur l'activité pour aller en vue semaine avec sélection automatique
                 activityEl.onclick = (e) => {
@@ -1970,9 +2074,17 @@
             const activityTime = new Date(activity.start_date_local);
             time.textContent = activityTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-            div.appendChild(icon);
-            div.appendChild(details);
-            div.appendChild(time);
+            const headerRow = document.createElement('div');
+            headerRow.className = 'activity-header';
+            headerRow.appendChild(icon);
+            headerRow.appendChild(details);
+            headerRow.appendChild(time);
+            div.appendChild(headerRow);
+
+            // Container inline pour map + profil (mobile uniquement)
+            const inlineDetail = document.createElement('div');
+            inlineDetail.className = 'activity-inline-detail';
+            div.appendChild(inlineDetail);
 
             return div;
         }
@@ -2047,7 +2159,7 @@
             if (hours > 0) {
                 return `${hours}h${minutes.toString().padStart(2, '0')}`;
             }
-            return `${minutes}min`;
+            return `${minutes}'`;
         }
 
         // === SÉLECTION D'UNE ACTIVITÉ ===
@@ -2063,18 +2175,33 @@
             const activityElement = e ? e.currentTarget : document.querySelector(`.activity-item[data-activity-id="${stravaId}"]`);
             if (activityElement) {
                 activityElement.classList.add('active');
-                
-                // ✅ AJOUT : Scroller jusqu'à l'activité sélectionnée
-                setTimeout(() => {
-                    activityElement.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center' 
-                    });
-                }, 100);
+
+                // Desktop : scroller vers l'activité ; mobile : géré par le scroll vers la map
+                if (window.innerWidth > 768) {
+                    setTimeout(() => {
+                        activityElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }, 100);
+                }
             }
 
             currentActivityId = stravaId;
             selectedLapIndex = null;
+
+            const mainContent = document.querySelector('.main-content');
+            if (window.innerWidth <= 768) {
+                // Mobile : bottom sheet
+                mainContent.classList.add('mobile-visible');
+                // paddingBottom = hauteur réelle du bottom sheet + 5px buffer
+                const mcH = mainContent.offsetHeight || 290;
+                document.getElementById('weekView').style.paddingBottom = (mcH + 5) + 'px';
+            } else {
+                // Desktop : afficher le panneau droite
+                mainContent.classList.add('visible');
+                setTimeout(() => { if (map) map.invalidateSize(); }, 50);
+            }
 
             // Charger les données GPS et les laps en parallèle
             await Promise.all([
@@ -2202,6 +2329,7 @@
         }
 
         function displayOnMap(streams) {
+            if (!map) return;
             // Effacer l'ancienne trace
             if (currentPolyline) {
                 map.removeLayer(currentPolyline);
@@ -2339,6 +2467,52 @@
         let segmentStart = null;
         let segmentEnd = null;
 
+        // === RESIZE BOTTOM SHEET ===
+        (function() {
+            const handle = document.getElementById('mapResizeHandle');
+            if (!handle) return;
+            let startY = null, startMapH = null;
+            const MAP_MIN = 120, CHART_H = 110;
+            const MAP_MAX = () => window.innerHeight * 0.75 - CHART_H;
+
+            handle.addEventListener('touchstart', e => {
+                startY = e.touches[0].clientY;
+                const mapEl = document.querySelector('.map-container');
+                startMapH = mapEl ? mapEl.offsetHeight : 180;
+                e.preventDefault();
+            }, { passive: false });
+
+            handle.addEventListener('touchmove', e => {
+                if (startY === null) return;
+                const dy = startY - e.touches[0].clientY; // positif = glisser vers le haut
+                const newMapH = Math.min(MAP_MAX(), Math.max(MAP_MIN, startMapH + dy));
+                const mapEl = document.querySelector('.map-container');
+                const mc = document.querySelector('.main-content');
+                if (mapEl) mapEl.style.height = newMapH + 'px';
+                if (mc) {
+                    const newMcH = newMapH + CHART_H;
+                    mc.style.height = newMcH + 'px';
+                    document.getElementById('weekView').style.paddingBottom = (newMcH + 5) + 'px';
+                }
+                if (map) map.invalidateSize();
+                e.preventDefault();
+            }, { passive: false });
+
+            handle.addEventListener('touchend', () => {
+                startY = null;
+                if (map) map.invalidateSize();
+            });
+        })();
+
+        function closeMapPanel() {
+            const mc = document.querySelector('.main-content');
+            mc.classList.remove('mobile-visible', 'visible');
+            mc.style.height = ''; // reset hauteur custom
+            document.getElementById('weekView').style.paddingBottom = '';
+            // Désélectionner l'activité active
+            document.querySelectorAll('.activity-item').forEach(i => i.classList.remove('active'));
+        }
+
         function toggleSegmentMode() {
             segmentMode = !segmentMode;
             segmentStart = null;
@@ -2435,6 +2609,13 @@
 
             const chartData = distances.map((d, i) => ({ x: d, y: elevations[i] }));
 
+            // Courbe de vitesse (km/h) lissée
+            const speeds = streams.map(s => s.velocity_smooth != null ? Math.round(s.velocity_smooth * 3.6 * 10) / 10 : null);
+            const speedData = distances.map((d, i) => ({ x: d, y: speeds[i] }));
+            const validSpeeds = speeds.filter(v => v != null);
+            const maxSpeed = Math.ceil(Math.max(...validSpeeds));
+            const speedStep = maxSpeed <= 10 ? 2 : maxSpeed <= 20 ? 5 : 10;
+
             const segmentPlugin = {
                 id: 'segmentLines',
                 afterDraw(chartInstance) {
@@ -2480,7 +2661,18 @@
                         backgroundColor: 'rgba(30, 136, 229, 0.1)',
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 0
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Vitesse (km/h)',
+                        data: speedData,
+                        borderColor: 'rgba(255, 152, 0, 0.8)',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                        yAxisID: 'ySpeed'
                     }]
                 },
                 plugins: [crosshairPlugin, lapHoverPlugin, segmentPlugin],
@@ -2526,15 +2718,7 @@
                             display: false
                         },
                         tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title(items) {
-                                    if (!items[0]) return '';
-                                    const x = items[0].parsed ? items[0].parsed.x : parseFloat(items[0].label);
-                                    return `${x.toFixed(2)} km`;
-                                }
-                            }
+                            enabled: false
                         }
                     },
                     animation: {
@@ -2558,7 +2742,28 @@
                             max: yMax,
                             title: {
                                 display: true,
-                                text: 'Altitude (m)'
+                                text: 'Altitude (m)',
+                                color: '#1e88e5',
+                                font: { size: 10 }
+                            },
+                            ticks: { color: '#1e88e5', font: { size: 9 } }
+                        },
+                        ySpeed: {
+                            type: 'linear',
+                            position: 'right',
+                            min: 0,
+                            max: maxSpeed + speedStep,
+                            grid: { drawOnChartArea: false },
+                            title: {
+                                display: true,
+                                text: 'km/h',
+                                color: 'rgba(255,152,0,0.8)',
+                                font: { size: 10 }
+                            },
+                            ticks: {
+                                stepSize: speedStep,
+                                color: 'rgba(255,152,0,0.8)',
+                                font: { size: 9 }
                             }
                         }
                     }
@@ -2911,6 +3116,7 @@
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            enabled: window.innerWidth > 768,
                             mode: 'index',
                             intersect: false,
                             callbacks: {

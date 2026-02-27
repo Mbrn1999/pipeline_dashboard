@@ -35,11 +35,21 @@
             transition: all 0.3s;
         }
         .header-back:hover { background: rgba(255,255,255,0.4); }
+        @media (max-width: 768px) {
+            .header-back .back-label { display: none; }
+            .container { padding-bottom: 40px; }
+            /* Header mobile aligné sur dashboard : 6px padding + 40px row = 52px total */
+            .header { padding: 0 12px; position: relative; justify-content: center; height: 52px; }
+            .header h1 { font-size: 17px; font-weight: 600; text-align: center; line-height: 52px; }
+            .header-back { padding: 6px 12px; font-size: 13px; border-width: 1.5px; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
+            .header-spacer { display: none; }
+        }
         .header h1 { font-size: 20px; font-weight: 600; }
         .container {
             max-width: 500px;
             width: 90%;
             margin: 30px auto;
+            padding-bottom: 40px;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -132,9 +142,9 @@
 </head>
 <body>
     <div class="header">
-        <a href="dashboard.html" class="header-back">← Dashboard</a>
+        <a href="dashboard.html" class="header-back">←<span class="back-label"> Dashboard</span></a>
         <h1>Parametres</h1>
-        <div style="width: 110px;"></div>
+        <div class="header-spacer" style="width: 110px;"></div>
     </div>
 
     <div class="container">
@@ -171,12 +181,6 @@
             <button class="btn btn-logout" onclick="logout()">Se deconnecter</button>
         </div>
 
-        <!-- Supprimer compte -->
-        <div class="card">
-            <h3>Zone dangereuse</h3>
-            <p>La suppression est irreversible. Toutes vos donnees seront perdues.</p>
-            <button class="btn btn-danger" onclick="confirmDeleteAccount()">Supprimer mon compte</button>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
