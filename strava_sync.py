@@ -33,7 +33,7 @@ STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-DEFAULT_DAYS = 7
+DEFAULT_DAYS = 30
 
 
 # ============================================================

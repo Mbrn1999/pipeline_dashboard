@@ -161,14 +161,38 @@
             flex: 1;
         }
 
+        .weekly-km-chart-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 10px;
+        }
+
         .weekly-km-chart-container {
             height: 120px;
-            margin-top: 10px;
+            flex: 1;
             padding: 8px 12px;
             background: white;
             border-radius: 8px;
             border: 1px solid #e0e0e0;
         }
+
+        .chart-nav-btn {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+        }
+
+        .chart-nav-btn:hover { background: #f5f5f5; }
 
         .calendar-day-header {
             background: #e3f2fd;
@@ -989,7 +1013,9 @@
                 overflow-y: auto;
                 align-content: start;
             }
-            .weekly-km-chart-container { height: 100px; margin-top: 3px; padding: 5px 8px; flex-shrink: 0; }
+            .weekly-km-chart-wrapper { margin-top: 3px; }
+            .weekly-km-chart-container { height: 100px; padding: 5px 8px; flex-shrink: 0; }
+            .chart-nav-btn { width: 24px; height: 24px; font-size: 14px; }
             .calendar-day-header { padding: 3px; font-size: 10px; border-radius: 4px; }
             .calendar-day {
                 min-height: 56px;
@@ -1108,6 +1134,7 @@
                     <div class="add-menu-item" onclick="openTrainingModal(); hideAddMenu();">Entrainement</div>
                     <div class="add-menu-item" onclick="openPlanningModal(); hideAddMenu();">Types de semaines</div>
                     <div class="add-menu-item" onclick="window.open('gpx-creator.html','_blank'); hideAddMenu();">Créer un GPX</div>
+                    <div class="add-menu-item" onclick="window.location.href='journal.html'; hideAddMenu();">📓 Journal</div>
                 </div>
             </div>
         </div>
@@ -1118,8 +1145,12 @@
         <div class="month-calendar" id="monthCalendar">
             <!-- Généré dynamiquement par JavaScript -->
         </div>
-        <div class="weekly-km-chart-container">
-            <canvas id="weeklyKmChart"></canvas>
+        <div class="weekly-km-chart-wrapper">
+            <button class="chart-nav-btn" id="chartPrev">&#8249;</button>
+            <div class="weekly-km-chart-container">
+                <canvas id="weeklyKmChart"></canvas>
+            </div>
+            <button class="chart-nav-btn" id="chartNext">&#8250;</button>
         </div>
     </div>
 
@@ -1320,6 +1351,9 @@
         let map = null;
         let chart = null;
         let weeklyKmChart = null;
+        let chartWeekOffset = 0; // 0 = vue par défaut (3 semaines avant aujourd'hui)
+        let lastCalendarStart = null;
+        let lastTotalDays = null;
         let currentActivityId = null;
         let currentPolyline = null;
         let currentMarkers = [];
@@ -1520,6 +1554,8 @@
                 calendar.appendChild(dayElement);
             }
 
+            lastCalendarStart = startDay;
+            lastTotalDays = totalDays;
             displayWeeklyKmChart(startDay, totalDays);
         }
 
@@ -1530,21 +1566,21 @@
             const calendarEnd = new Date(calendarStart);
             calendarEnd.setDate(calendarEnd.getDate() + totalDays - 1);
 
-            // Semaines passées/futures selon la taille d'écran
-            const isMobile = window.innerWidth <= 768;
-            const weeksPast = 10;
-            const weeksFuture = 5;
+            // Fenêtre fixe de 12 semaines, démarrant 3 semaines avant aujourd'hui par défaut
+            const WINDOW_SIZE = 12;
+            const DEFAULT_WEEKS_BEFORE = 3;
 
             const now = new Date();
-            const oneYearAgo = new Date(now);
-            oneYearAgo.setDate(oneYearAgo.getDate() - weeksPast * 7);
-            const dayOfWeek = oneYearAgo.getDay();
-            oneYearAgo.setDate(oneYearAgo.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const startDate = new Date(now);
+            startDate.setDate(startDate.getDate() - (DEFAULT_WEEKS_BEFORE + chartWeekOffset) * 7);
+            const dayOfWeek = startDate.getDay();
+            startDate.setDate(startDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const oneYearAgo = startDate;
 
             // Pré-indexer les km de course par date pour éviter les appels répétés
             const runKmByDate = {};
             activities.forEach(a => {
-                if (a.sport_type === 'Run') {
+                if (a.sport_type === 'Run' || a.sport_type === 'TrailRun') {
                     const dateStr = a.start_date_local.substring(0, 10);
                     runKmByDate[dateStr] = (runKmByDate[dateStr] || 0) + a.distance / 1000;
                 }
@@ -1553,7 +1589,7 @@
             // Pré-indexer les km planifiés par date
             const plannedKmByDate = {};
             trainings.forEach(t => {
-                if (t.planned_distance && t.sport_type === 'Run') {
+                if (t.planned_distance && (t.sport_type === 'Run' || t.sport_type === 'TrailRun')) {
                     const dateStr = t.date;
                     plannedKmByDate[dateStr] = (plannedKmByDate[dateStr] || 0) + t.planned_distance;
                 }
@@ -1566,9 +1602,8 @@
             const borderColors = [];
 
             const weekStart = new Date(oneYearAgo);
-            const chartEnd = new Date(now);
-            chartEnd.setDate(chartEnd.getDate() + weeksFuture * 7);
-            while (weekStart <= chartEnd) {
+            let weeksDrawn = 0;
+            while (weeksDrawn < WINDOW_SIZE) {
                 const weekEnd = new Date(weekStart);
                 weekEnd.setDate(weekEnd.getDate() + 6);
 
@@ -1603,6 +1638,7 @@
                 }
 
                 weekStart.setDate(weekStart.getDate() + 7);
+                weeksDrawn++;
             }
 
             if (weeklyKmChart) weeklyKmChart.destroy();
@@ -3992,8 +4028,8 @@
             try {
                 const token = await getStravaAccessToken();
 
-                // Fetch recent activities (last 10 days)
-                const after = Math.floor((Date.now() - 10 * 24 * 3600 * 1000) / 1000);
+                // Fetch recent activities (last 30 days)
+                const after = Math.floor((Date.now() - 30 * 24 * 3600 * 1000) / 1000);
                 const activitiesRes = await fetch(
                     `https://www.strava.com/api/v3/athlete/activities?per_page=200&after=${after}`,
                     { headers: { 'Authorization': `Bearer ${token}` } }
@@ -4152,6 +4188,15 @@
         // Lancer l'initialisation au chargement de la page
         document.addEventListener('DOMContentLoaded', () => {
             initializeApp();
+
+            document.getElementById('chartPrev').addEventListener('click', () => {
+                chartWeekOffset++;
+                displayWeeklyKmChart(lastCalendarStart, lastTotalDays);
+            });
+            document.getElementById('chartNext').addEventListener('click', () => {
+                chartWeekOffset--;
+                displayWeeklyKmChart(lastCalendarStart, lastTotalDays);
+            });
         });
     </script>
 </body>

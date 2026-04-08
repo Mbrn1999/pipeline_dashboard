@@ -226,7 +226,7 @@
 
             try {
                 const token = await getStravaAccessToken();
-                const after = Math.floor((Date.now() - 7 * 24 * 3600 * 1000) / 1000);
+                const after = Math.floor((Date.now() - 30 * 24 * 3600 * 1000) / 1000);
                 const res = await fetch(
                     `https://www.strava.com/api/v3/athlete/activities?per_page=200&after=${after}`,
                     { headers: { 'Authorization': `Bearer ${token}` } }
