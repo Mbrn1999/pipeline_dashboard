@@ -1,30 +1,22 @@
 # strava-backend
 
-Synchronise vos activités Strava dans une base Supabase et expose un dashboard personnel.
+Scripts Python pour synchroniser les activités Strava dans Supabase.  
+Le frontend (`docs/`) est hébergé séparément sur un domaine et accède directement à Supabase et à l'API Strava.
 
 ## Stack
 
-- **Backend :** Python 3 + Flask (port 5003)
+- **Scripts :** Python 3 (sync Strava → Supabase)
 - **Base de données :** Supabase (PostgreSQL)
-- **Frontend :** HTML/JS statique dans `docs/`
-- **Auth :** Supabase Auth (email/password + OAuth Strava)
 - **Package manager :** Poetry
+- **Frontend :** HTML/JS statique dans `docs/` — hébergé sur domaine
 
 ## Installation
 
 ### 1. Dépendances Python
 
 ```bash
-# Installer Poetry si besoin
 pip install poetry
-
-# Installer les dépendances du projet
 poetry install
-
-# Activer l'environnement (Poetry 2.x)
-eval "$(poetry env activate)"
-# ou lancer directement sans activer
-poetry run python3 app.py
 ```
 
 ### 2. Variables d'environnement
@@ -39,7 +31,6 @@ STRAVA_REFRESH_TOKEN=
 SUPABASE_URL=https://votre-projet.supabase.co
 SUPABASE_KEY=votre_anon_key
 SUPABASE_t_KEY=votre_service_role_key
-FLASK_DEBUG=false
 ```
 
 ### 3. Obtenir les credentials Strava
@@ -50,7 +41,7 @@ FLASK_DEBUG=false
 
 ```bash
 cd scripts
-uvicorn login:app --reload --port 8001
+poetry run uvicorn login:app --reload --port 8001
 ```
 
 Ouvrez [http://localhost:8001/login](http://localhost:8001/login), autorisez l'app Strava, récupérez le `refresh_token` dans la réponse JSON.
@@ -63,34 +54,22 @@ Dans l'éditeur SQL de votre projet Supabase, exécutez dans l'ordre :
 2. `table sql/create_streams_table.sql` — table `strava_activity_streams`
 3. *(optionnel)* `table sql/migration_multi_user.sql` — support multi-utilisateurs (RLS)
 
-## Utilisation
-
-### Démarrer le serveur
+## Synchronisation Strava → Supabase
 
 ```bash
-./start.sh
-# ou
-python app.py
-```
+# 7 derniers jours (défaut)
+poetry run python3 strava_sync.py
 
-Le frontend est disponible dans `docs/` (à ouvrir directement dans un navigateur ou servir via un serveur statique).
+# N derniers jours
+poetry run python3 strava_sync.py --days 30
 
-### Synchronisation Strava → Supabase
+# Tout synchroniser
+poetry run python3 strava_sync.py --all
 
-```bash
-# Sync des 7 derniers jours (défaut)
-python strava_sync.py
-
-# Sync des N derniers jours
-python strava_sync.py --days 30
-
-# Sync complète (toutes les activités)
-python strava_sync.py --all
-
-# Sync par type de données
-python strava_sync.py activities   # Activités seulement
-python strava_sync.py laps         # Laps seulement
-python strava_sync.py streams      # Traces GPS (~40-60 min pour 2000 activités)
+# Par type de données
+poetry run python3 strava_sync.py activities   # Activités seulement
+poetry run python3 strava_sync.py laps         # Laps seulement
+poetry run python3 strava_sync.py streams      # Traces GPS (~40-60 min pour 2000 activités)
 ```
 
 Les scripts sont idempotents — safe à relancer, pas de doublons (upsert sur `strava_id`).
@@ -98,19 +77,9 @@ Les scripts sont idempotents — safe à relancer, pas de doublons (upsert sur `
 ### Synchronisation automatique (cron)
 
 ```bash
-# Exemple : sync quotidienne à 7h
-0 7 * * * cd /chemin/vers/strava-backend && ./venv/bin/python strava_sync.py
+# Sync quotidienne à 7h
+0 7 * * * cd /chemin/vers/strava-backend && poetry run python3 strava_sync.py
 ```
-
-## API Flask
-
-| Route | Description |
-|-------|-------------|
-| `GET /api/activities` | Toutes les activités de l'année |
-| `GET /api/activity/<id>` | Détail d'une activité |
-| `GET /api/activity/<id>/streams` | Points GPS (paginé, 1000/page) |
-| `GET /api/activity/<id>/laps` | Données de laps |
-| `GET /api/stats` | Stats agrégées (distance totale, dénivelé, temps) |
 
 ## Données synchronisées
 
@@ -125,7 +94,7 @@ Les scripts sont idempotents — safe à relancer, pas de doublons (upsert sur `
 ## Diagnostic
 
 ```bash
-python scripts/check_latest_activity.py
+poetry run python3 scripts/check_latest_activity.py
 ```
 
 Vérifie que la dernière activité Strava est bien présente dans Supabase (activités + streams).
@@ -135,11 +104,11 @@ Vérifie que la dernière activité Strava est bien présente dans Supabase (act
 - 100 requêtes / 15 min
 - 1000 requêtes / jour
 
-`strava_sync.py` respecte automatiquement ces limites avec des pauses adaptées.
+`strava_sync.py` respecte automatiquement ces limites.
 
 ## Dépannage
 
-**Variables Strava manquantes** → vérifiez `.env`, pas d'espaces autour du `=`
+**Variables manquantes** → vérifiez `.env`, pas d'espaces autour du `=`
 
 **Token invalide** → relancez le flow OAuth via `scripts/login.py`
 

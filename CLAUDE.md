@@ -2,26 +2,25 @@
 
 ## Stack
 
-- **Backend :** Python 3 + Flask (port 5003)
+- **Scripts Python :** Python 3 (sync Strava → Supabase)
 - **Base de données :** Supabase (PostgreSQL)
 - **Package manager :** Poetry (`pyproject.toml` + `poetry.lock`)
-- **Frontend :** HTML/JS statique dans `docs/` (accès direct au client Supabase JS)
+- **Frontend :** HTML/JS statique dans `docs/` — hébergé sur domaine, accès direct Supabase JS + API Strava
 - **Auth :** Supabase Auth (email/password + OAuth Strava)
-- **Serveur prod :** Gunicorn
+
+> Pas de serveur backend — le frontend appelle directement Supabase et l'API Strava.
 
 ## Structure du projet
 
 ```
 strava-backend/
-├── app.py                        # Flask API (/api/*)
 ├── strava_sync.py                # Script de sync unifié (SEUL script de sync)
-├── start.sh                      # Lance app.py via le venv
 ├── pyproject.toml                # Dépendances Poetry
 ├── poetry.lock                   # Lock file (committer)
-├── requirements.txt              # Kept pour référence / compat pip
+├── requirements.txt              # Compat pip (référence)
 ├── .env                          # Credentials (jamais committer)
 │
-├── docs/                         # Frontend statique (production)
+├── docs/                         # Frontend statique (hébergé sur domaine)
 │   ├── index.html                # Page de login
 │   ├── dashboard.html            # Dashboard principal
 │   ├── journal.html              # Journal d'activités
@@ -45,15 +44,10 @@ strava-backend/
 # Installer les dépendances
 poetry install
 
-# Activer le venv (Poetry 2.x — pas de `poetry shell`)
+# Activer le venv (Poetry 2.x)
 eval "$(poetry env activate)"
 
-# Démarrer le serveur Flask
-poetry run python3 app.py
-# ou
-./start.sh
-
-# Synchronisation Strava → Supabase (script unique)
+# Synchronisation Strava → Supabase
 poetry run python3 strava_sync.py              # 7 derniers jours (défaut)
 poetry run python3 strava_sync.py --days 30    # N derniers jours
 poetry run python3 strava_sync.py --all        # Tout synchroniser
@@ -80,16 +74,6 @@ poetry run python3 scripts/check_latest_activity.py
 | `strava_laps` | Données de laps/segments |
 | `user_strava_tokens` | Tokens OAuth Strava par utilisateur |
 
-## Routes API Flask
-
-| Route | Description |
-|-------|-------------|
-| `GET /api/activities` | Toutes les activités de l'année (paginé) |
-| `GET /api/activity/<id>` | Détail d'une activité |
-| `GET /api/activity/<id>/streams` | Points GPS (paginé, 1000/page) |
-| `GET /api/activity/<id>/laps` | Données de laps |
-| `GET /api/stats` | Stats agrégées (total distance, dénivelé, temps) |
-
 ## Variables d'environnement (.env)
 
 ```
@@ -97,31 +81,32 @@ STRAVA_CLIENT_ID=
 STRAVA_CLIENT_SECRET=
 STRAVA_REFRESH_TOKEN=
 SUPABASE_URL=
-SUPABASE_KEY=          # anon/public key
-SUPABASE_t_KEY=        # service role key (admin, backend only)
-FLASK_DEBUG=false
+SUPABASE_KEY=      # anon/public key
+SUPABASE_t_KEY=    # service role key (scripts Python uniquement)
 ```
 
-## Architecture frontend
+## Architecture
 
-Le frontend (`docs/`) accède **directement** à Supabase via le client JS — il ne passe pas par Flask pour les données. Flask ne sert que les routes `/api/*` (stats agrégées).
+Le frontend (`docs/`) est hébergé statiquement (domaine) et communique directement avec :
+- **Supabase JS** — lecture des données (activités, streams, laps)
+- **API Strava** — accès direct depuis le navigateur (token OAuth stocké dans Supabase)
+
+Les scripts Python servent uniquement à la **synchronisation** Strava → Supabase. Ils tournent en local ou en cron.
 
 - `auth.js` : initialise le client Supabase, gère login/logout et le flow OAuth Strava
-- Les credentials Supabase (`SUPABASE_KEY` anon key) sont dans `auth.js` — c'est normal, cette clé est publique par conception
-- Le `STRAVA_CLIENT_SECRET` et `SUPABASE_t_KEY` ne doivent **jamais** être dans le frontend
+- La `SUPABASE_KEY` (anon key) dans `auth.js` est publique par conception — RLS protège les données
+- `SUPABASE_t_KEY` (service role) et `STRAVA_CLIENT_SECRET` : scripts Python uniquement, jamais dans le frontend
 
 ## Règles importantes
 
 - **Ne jamais committer `.env`** — credentials réels
-- **Ne jamais exposer `SUPABASE_t_KEY` (service role) côté frontend**
+- **Ne jamais exposer `SUPABASE_t_KEY` côté frontend**
 - **Les scripts sont idempotents** — upsert sur `strava_id`, safe à relancer
 - **Rate limiting Strava :** 100 req/15 min, 1000 req/jour — `strava_sync.py` le respecte
 - **Migrations SQL :** s'exécutent dans l'éditeur SQL Supabase (idempotentes avec `IF NOT EXISTS`)
-- **`strava_sync.py` est le seul script de sync** — les anciens scripts individuels ont été supprimés
 
 ## Conventions
 
 - Code et commentaires en français
 - Pas de build/bundling — Python et HTML directs
-- Frontend utilise Supabase JS client directement (pas de proxy Flask)
 - Pas de mock en tests — les tests doivent toucher une vraie base
