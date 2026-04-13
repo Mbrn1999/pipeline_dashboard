@@ -1,241 +1,148 @@
-# Strava to Supabase - Guide d'utilisation
+# strava-backend
 
-Ce script récupère toutes vos activités Strava et les envoie dans une base de données Supabase.
+Synchronise vos activités Strava dans une base Supabase et expose un dashboard personnel.
 
-## 📋 Prérequis
+## Stack
 
-1. Un compte Strava avec des activités
-2. Un compte Supabase (gratuit)
-3. Python 3.7+ installé
+- **Backend :** Python 3 + Flask (port 5003)
+- **Base de données :** Supabase (PostgreSQL)
+- **Frontend :** HTML/JS statique dans `docs/`
+- **Auth :** Supabase Auth (email/password + OAuth Strava)
+- **Package manager :** Poetry
 
-## 🚀 Installation
+## Installation
 
-### 1. Installer les dépendances
+### 1. Dépendances Python
 
 ```bash
-pip install -r requirements.txt
+# Installer Poetry si besoin
+pip install poetry
+
+# Installer les dépendances du projet
+poetry install
+
+# Activer l'environnement (Poetry 2.x)
+eval "$(poetry env activate)"
+# ou lancer directement sans activer
+poetry run python3 app.py
 ```
 
-### 2. Créer la table Supabase
+### 2. Variables d'environnement
 
-1. Allez sur votre dashboard Supabase : https://app.supabase.com
-2. Sélectionnez votre projet
-3. Cliquez sur "SQL Editor" dans le menu de gauche
-4. Créez une nouvelle query
-5. Copiez-collez le contenu du fichier `create_table.sql`
-6. Exécutez la query (bouton "Run" ou Ctrl+Enter)
-
-### 3. Obtenir vos credentials Strava
-
-#### A. Client ID et Client Secret
-
-1. Allez sur https://www.strava.com/settings/api
-2. Créez une nouvelle application (si ce n'est pas déjà fait)
-3. Notez votre `Client ID` et `Client Secret`
-
-#### B. Refresh Token
-
-**Option 1 : Utiliser le serveur FastAPI existant**
-
-1. Lancez le serveur :
-```bash
-uvicorn main:app --reload --port 8001
-```
-
-2. Ouvrez votre navigateur et allez sur :
-```
-http://localhost:8001/login
-```
-
-3. Copiez l'URL retournée et collez-la dans votre navigateur
-
-4. Autorisez l'application Strava
-
-5. Vous serez redirigé vers `http://localhost:8001/callback?code=...`
-
-6. La réponse JSON contient votre `refresh_token` - copiez-le !
-
-**Option 2 : Obtenir le token manuellement**
-
-1. Construisez cette URL (remplacez `VOTRE_CLIENT_ID`) :
-```
-https://www.strava.com/oauth/authorize?client_id=VOTRE_CLIENT_ID&response_type=code&redirect_uri=http://localhost:8001/callback&approval_prompt=auto&scope=read,activity:read_all
-```
-
-2. Collez l'URL dans votre navigateur et autorisez
-
-3. Vous serez redirigé vers une URL qui contient un `code=...`
-
-4. Utilisez ce code pour obtenir le refresh_token :
-```bash
-curl -X POST https://www.strava.com/oauth/token \
-  -d client_id=VOTRE_CLIENT_ID \
-  -d client_secret=VOTRE_CLIENT_SECRET \
-  -d code=LE_CODE_RECU \
-  -d grant_type=authorization_code
-```
-
-5. La réponse contient votre `refresh_token`
-
-### 4. Obtenir vos credentials Supabase
-
-1. Allez sur votre dashboard Supabase : https://app.supabase.com
-2. Sélectionnez votre projet
-3. Cliquez sur l'icône "Settings" (roue dentée) en bas à gauche
-4. Cliquez sur "API" dans le menu
-5. Copiez :
-   - **URL** (sous "Project URL")
-   - **anon/public key** (sous "Project API keys")
-
-### 5. Configurer le fichier .env
-
-Modifiez le fichier `.env` avec vos valeurs :
+Créez un fichier `.env` à la racine :
 
 ```env
-STRAVA_CLIENT_ID=127701
-STRAVA_CLIENT_SECRET=votre_client_secret_ici
-STRAVA_REFRESH_TOKEN=votre_refresh_token_ici
+STRAVA_CLIENT_ID=
+STRAVA_CLIENT_SECRET=
+STRAVA_REFRESH_TOKEN=
 
-# Supabase
 SUPABASE_URL=https://votre-projet.supabase.co
-SUPABASE_KEY=votre_cle_supabase_ici
+SUPABASE_KEY=votre_anon_key
+SUPABASE_t_KEY=votre_service_role_key
+FLASK_DEBUG=false
 ```
 
-## ▶️ Utilisation
+### 3. Obtenir les credentials Strava
 
-Lancez simplement le script :
+1. Créez une app sur [strava.com/settings/api](https://www.strava.com/settings/api)
+2. Notez `Client ID` et `Client Secret`
+3. Lancez le helper OAuth pour obtenir le `refresh_token` :
 
 ```bash
-python strava_to_supabase.py
+cd scripts
+uvicorn login:app --reload --port 8001
 ```
 
-Le script va :
-1. Se connecter à Strava
-2. Récupérer toutes vos activités (pagination automatique)
-3. Les formater correctement
-4. Les envoyer dans Supabase (avec gestion des doublons)
+Ouvrez [http://localhost:8001/login](http://localhost:8001/login), autorisez l'app Strava, récupérez le `refresh_token` dans la réponse JSON.
 
-## 📊 Données récupérées
+### 4. Créer les tables Supabase
 
-Pour chaque activité, le script récupère :
-- **strava_id** : ID unique Strava
-- **name** : Nom de l'activité
-- **sport_type** : Type de sport (Run, Ride, Swim, etc.)
-- **distance** : Distance en mètres
-- **moving_time** : Temps en mouvement (secondes)
-- **elapsed_time** : Temps total (secondes)
-- **total_elevation_gain** : Dénivelé positif (mètres)
-- **start_date** : Date/heure de début (UTC)
-- **start_date_local** : Date/heure de début (locale)
-- **average_speed** : Vitesse moyenne (m/s)
-- **max_speed** : Vitesse max (m/s)
-- **average_heartrate** : Fréquence cardiaque moyenne
-- **max_heartrate** : Fréquence cardiaque max
-- **elev_high** : Altitude max
-- **elev_low** : Altitude min
-- **kudos_count** : Nombre de kudos
-- **achievement_count** : Nombre de réalisations
+Dans l'éditeur SQL de votre projet Supabase, exécutez dans l'ordre :
 
-## 🔄 Synchronisation automatique
+1. `table sql/create_table.sql` — table `strava_activities`
+2. `table sql/create_streams_table.sql` — table `strava_activity_streams`
+3. *(optionnel)* `table sql/migration_multi_user.sql` — support multi-utilisateurs (RLS)
 
-Pour synchroniser automatiquement vos activités, vous pouvez :
+## Utilisation
 
-1. **Créer un cron job** (Linux/Mac) :
-```bash
-# Éditer le crontab
-crontab -e
-
-# Ajouter cette ligne pour exécuter tous les jours à 8h
-0 8 * * * cd /chemin/vers/strava-backend && /usr/bin/python3 strava_to_supabase.py
-```
-
-2. **Créer une tâche planifiée** (Windows) :
-- Ouvrez le Planificateur de tâches
-- Créez une nouvelle tâche
-- Configurez-la pour exécuter `python strava_to_supabase.py`
-
-## ⚠️ Limitations
-
-- L'API Strava a des limites de taux : 100 requêtes toutes les 15 minutes, 1000 par jour
-- Le script utilise la pagination (200 activités par page) pour optimiser les requêtes
-- Les doublons sont automatiquement gérés (basé sur `strava_id`)
-
-## 🐛 Dépannage
-
-**Erreur : Variables Strava manquantes**
-- Vérifiez que votre fichier `.env` contient toutes les variables
-- Assurez-vous qu'il n'y a pas d'espaces autour du `=`
-
-**Erreur : Impossible de récupérer le token**
-- Vérifiez votre `STRAVA_REFRESH_TOKEN`
-- Régénérez un nouveau refresh_token si nécessaire
-
-**Erreur Supabase : table does not exist**
-- Assurez-vous d'avoir exécuté le script SQL `create_table.sql` dans Supabase
-
-**Erreur : upsert failed**
-- Vérifiez que la table a bien une contrainte unique sur `strava_id`
-
-## 🗺️ Récupérer les traces GPX (coordonnées GPS)
-
-En plus des informations de base des activités, vous pouvez récupérer toutes les traces GPS détaillées.
-
-### 1. Créer la table des traces
-
-Dans l'éditeur SQL de Supabase :
-1. Créez une nouvelle query
-2. Copiez-collez le contenu du fichier `create_streams_table.sql`
-3. Exécutez la query
-
-### 2. Lancer le script GPX
+### Démarrer le serveur
 
 ```bash
-./venv/bin/python strava_streams_to_supabase.py
+./start.sh
+# ou
+python app.py
 ```
 
-Ce script va :
-- Récupérer les coordonnées GPS de chaque point de toutes vos activités
-- Envoyer les données dans la table `strava_activity_streams`
+Le frontend est disponible dans `docs/` (à ouvrir directement dans un navigateur ou servir via un serveur statique).
 
-**Attention :** Ce processus est long car il fait une requête API par activité.
-- Pour 2000 activités, cela prend environ 40-60 minutes
-- Le script respecte automatiquement les limites de l'API Strava (100 req/15min)
+### Synchronisation Strava → Supabase
 
-### Données GPX récupérées
+```bash
+# Sync des 7 derniers jours (défaut)
+python strava_sync.py
 
-Pour chaque point GPS :
-- **latitude/longitude** : Coordonnées GPS
-- **altitude** : Altitude en mètres
-- **time** : Temps depuis le début (secondes)
-- **distance** : Distance cumulée (mètres)
-- **heartrate** : Fréquence cardiaque
-- **velocity_smooth** : Vitesse lissée (m/s)
-- **grade_smooth** : Pente lissée (%)
-- **cadence** : Cadence (tours/min)
-- **watts** : Puissance (watts)
-- **temp** : Température (°C)
+# Sync des N derniers jours
+python strava_sync.py --days 30
 
-### Utilisation des données GPS
+# Sync complète (toutes les activités)
+python strava_sync.py --all
 
-Une fois les données importées, vous pouvez :
-- Afficher les traces sur une carte
-- Analyser les variations d'altitude
-- Étudier l'évolution de la vitesse/cardio sur le parcours
-- Créer des heatmaps de vos zones d'entraînement
-- Exporter en GPX pour d'autres outils
-
-Exemple de requête SQL pour récupérer une trace :
-```sql
-SELECT latitude, longitude, altitude, time, heartrate
-FROM strava_activity_streams
-WHERE strava_id = 123456789
-ORDER BY stream_index;
+# Sync par type de données
+python strava_sync.py activities   # Activités seulement
+python strava_sync.py laps         # Laps seulement
+python strava_sync.py streams      # Traces GPS (~40-60 min pour 2000 activités)
 ```
 
-## 📝 Notes
+Les scripts sont idempotents — safe à relancer, pas de doublons (upsert sur `strava_id`).
 
-- Les scripts sont idempotents : vous pouvez les relancer sans créer de doublons
-- Les timestamps sont en UTC dans Strava, utilisez `start_date_local` pour l'heure locale
-- Pour convertir les distances : diviser par 1000 pour avoir des kilomètres
-- Pour convertir les temps : diviser par 60 pour avoir des minutes, par 3600 pour des heures
-- Toutes les activités n'ont pas de traces GPS (ex: activités manuelles, natation en piscine)
+### Synchronisation automatique (cron)
+
+```bash
+# Exemple : sync quotidienne à 7h
+0 7 * * * cd /chemin/vers/strava-backend && ./venv/bin/python strava_sync.py
+```
+
+## API Flask
+
+| Route | Description |
+|-------|-------------|
+| `GET /api/activities` | Toutes les activités de l'année |
+| `GET /api/activity/<id>` | Détail d'une activité |
+| `GET /api/activity/<id>/streams` | Points GPS (paginé, 1000/page) |
+| `GET /api/activity/<id>/laps` | Données de laps |
+| `GET /api/stats` | Stats agrégées (distance totale, dénivelé, temps) |
+
+## Données synchronisées
+
+### strava_activities
+
+`strava_id`, `name`, `sport_type`, `distance`, `moving_time`, `elapsed_time`, `total_elevation_gain`, `start_date`, `start_date_local`, `average_speed`, `max_speed`, `average_heartrate`, `max_heartrate`, `elev_high`, `elev_low`, `kudos_count`, `achievement_count`
+
+### strava_activity_streams (GPS)
+
+`latitude`, `longitude`, `altitude`, `time`, `distance`, `heartrate`, `velocity_smooth`, `grade_smooth`, `cadence`, `watts`, `temp`
+
+## Diagnostic
+
+```bash
+python scripts/check_latest_activity.py
+```
+
+Vérifie que la dernière activité Strava est bien présente dans Supabase (activités + streams).
+
+## Limitations API Strava
+
+- 100 requêtes / 15 min
+- 1000 requêtes / jour
+
+`strava_sync.py` respecte automatiquement ces limites avec des pauses adaptées.
+
+## Dépannage
+
+**Variables Strava manquantes** → vérifiez `.env`, pas d'espaces autour du `=`
+
+**Token invalide** → relancez le flow OAuth via `scripts/login.py`
+
+**Table inexistante** → exécutez les scripts SQL dans l'ordre indiqué ci-dessus
+
+**Upsert échoue** → vérifiez la contrainte unique sur `strava_id` dans la table

@@ -1367,7 +1367,7 @@
         let streamsCache = new Map();
         let lapsCache = new Map();
         let currentView = 'month'; // 'month' ou 'week'
-        let currentMonth = new Date(2026, 1, 1); // Février 2026
+        let currentMonth = new Date(); // Mois actuel
         let selectedWeekStart = null;
         let preselectedActivityId = null; // Pour mémoriser l'activité à sélectionner
 
@@ -1556,6 +1556,7 @@
 
             lastCalendarStart = startDay;
             lastTotalDays = totalDays;
+            chartWeekOffset = 0; // reset au changement de mois
             displayWeeklyKmChart(startDay, totalDays);
         }
 
@@ -1566,15 +1567,16 @@
             const calendarEnd = new Date(calendarStart);
             calendarEnd.setDate(calendarEnd.getDate() + totalDays - 1);
 
-            // Fenêtre fixe de 12 semaines, démarrant 3 semaines avant aujourd'hui par défaut
+            // 12 semaines fixes : 2 semaines avant le 1er du mois, puis 10 semaines après
             const WINDOW_SIZE = 12;
-            const DEFAULT_WEEKS_BEFORE = 3;
 
-            const now = new Date();
-            const startDate = new Date(now);
-            startDate.setDate(startDate.getDate() - (DEFAULT_WEEKS_BEFORE + chartWeekOffset) * 7);
-            const dayOfWeek = startDate.getDay();
-            startDate.setDate(startDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+            const firstOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const startDate = new Date(firstOfMonth);
+            startDate.setDate(startDate.getDate() - 14); // 2 semaines avant
+            // Aligner sur le lundi
+            const dow = startDate.getDay();
+            startDate.setDate(startDate.getDate() - (dow === 0 ? 6 : dow - 1));
+            startDate.setDate(startDate.getDate() + chartWeekOffset * 7);
             const oneYearAgo = startDate;
 
             // Pré-indexer les km de course par date pour éviter les appels répétés
@@ -1787,30 +1789,28 @@
                 activitiesDiv.appendChild(activityEl);
             });
 
-            // Entraînements planifiés (uniquement si pas d'activité ce jour-là)
-            if (dayActivities.length === 0) {
-                const dayTrainings = getTrainingsForDate(date);
-                dayTrainings.filter(t => !t.strava_activity_id).forEach(training => {
-                    const planEl = document.createElement('div');
-                    planEl.className = 'day-activity planned';
-                    const sIcon = sportIcon(training.sport_type);
-                    let label = sIcon;
-                    if (training.title) label += ` ${training.title.substring(0, 15)}`;
-                    if (training.planned_distance) label += ` ${training.planned_distance}km`;
-                    if (training.planned_time) {
-                        const h = Math.floor(training.planned_time / 60);
-                        const m = training.planned_time % 60;
-                        label += ` ${h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + 'min'}`;
-                    }
-                    planEl.textContent = label;
-                    planEl.onclick = (e) => {
-                        e.stopPropagation();
-                        const weekStart = getWeekStart(date);
-                        showWeekView(weekStart);
-                    };
-                    activitiesDiv.appendChild(planEl);
-                });
-            }
+            // Entraînements planifiés (toujours affichés, même s'il y a une activité)
+            const dayTrainings = getTrainingsForDate(date);
+            dayTrainings.forEach(training => {
+                const planEl = document.createElement('div');
+                planEl.className = 'day-activity planned';
+                const sIcon = sportIcon(training.sport_type);
+                let label = sIcon;
+                if (training.title) label += ` ${training.title.substring(0, 15)}`;
+                if (training.planned_distance) label += ` ${training.planned_distance}km`;
+                if (training.planned_time) {
+                    const h = Math.floor(training.planned_time / 60);
+                    const m = training.planned_time % 60;
+                    label += ` ${h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + 'min'}`;
+                }
+                planEl.textContent = label;
+                planEl.onclick = (e) => {
+                    e.stopPropagation();
+                    const weekStart = getWeekStart(date);
+                    showWeekView(weekStart);
+                };
+                activitiesDiv.appendChild(planEl);
+            });
 
             div.appendChild(activitiesDiv);
 
@@ -2097,9 +2097,7 @@
                 trainingDiv.textContent = training.title;
                 trainingDiv.onclick = (e) => {
                     e.stopPropagation();
-                    const action = prompt(`Entrainement : "${training.title}"\n\nTapez "s" pour supprimer ou "m" pour modifier`);
-                    if (action && action.toLowerCase() === 's') deleteTraining(training.id);
-                    else if (action && action.toLowerCase() === 'm') editTraining(training);
+                    openTrainingModal(null, new Date(training.date));
                 };
                 details.appendChild(trainingDiv);
             }
@@ -3437,7 +3435,7 @@
         let preselectedTrainingActivityId = null;
         let trainingWeekStart = null;
 
-        function openTrainingModal(preselectedActivityId = null) {
+        function openTrainingModal(preselectedActivityId = null, date = null) {
             editingTrainingId = null;
             // Mode semaine
             document.getElementById('trainingWeekNav').style.display = 'flex';
@@ -3447,8 +3445,8 @@
             document.getElementById('trainingModalHeader').textContent = 'Planifier la semaine';
             document.getElementById('trainingSubmitBtn').textContent = 'Enregistrer';
 
-            // Démarrer sur la semaine courante
-            trainingWeekStart = getWeekStart(new Date());
+            // Démarrer sur la semaine de la date fournie, ou la semaine courante
+            trainingWeekStart = getWeekStart(date || new Date());
             buildTrainingWeekGrid();
 
             document.getElementById('trainingModal').classList.add('show');
@@ -4196,6 +4194,21 @@
             document.getElementById('chartNext').addEventListener('click', () => {
                 chartWeekOffset--;
                 displayWeeklyKmChart(lastCalendarStart, lastTotalDays);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                // Ignorer si focus dans un input/textarea
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    if (currentView === 'week') previousWeek();
+                    else previousMonth();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (currentView === 'week') nextWeek();
+                    else nextMonth();
+                }
             });
         });
     </script>

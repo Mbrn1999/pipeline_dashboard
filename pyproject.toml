@@ -1,0 +1,27 @@
+[project]
+name = "strava-backend"
+version = "0.1.0"
+description = "Sync Strava activities to Supabase + personal dashboard"
+authors = [
+    {name = "Mael Baron"}
+]
+readme = "README.md"
+requires-python = "^3.12"
+dependencies = [
+    "requests (==2.31.0)",
+    "python-dotenv (==1.0.0)",
+    "supabase (==2.10.0)",
+    "flask (==3.0.0)",
+    "flask-cors (==4.0.0)",
+    "gunicorn (==21.2.0)",
+    "fastapi (==0.111.0)",
+    "uvicorn (==0.29.0)"
+]
+
+
+[tool.poetry]
+package-mode = false
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

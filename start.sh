@@ -1,3 +1,3 @@
 #!/bin/bash
-cd /Users/maelbaron/Documents/strava-backend
-./venv/bin/python app.py
+cd "$(dirname "$0")"
+poetry run python3 app.py
