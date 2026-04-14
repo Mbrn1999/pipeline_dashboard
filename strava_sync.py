@@ -31,7 +31,7 @@ STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
 
 # Configuration Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_t_KEY") or os.getenv("SUPABASE_KEY")
 
 DEFAULT_DAYS = 30
 
@@ -296,7 +296,7 @@ def get_activity_streams(activity_id, access_token):
         return None
 
 
-def format_streams(activity_id, streams_data):
+def format_streams(activity_id, streams_data, user_id=None):
     """Formate les streams pour l'insertion dans Supabase"""
     if not streams_data or "latlng" not in streams_data:
         return []
@@ -318,6 +318,7 @@ def format_streams(activity_id, streams_data):
     formatted_points = []
     for i, latlng in enumerate(latlng_data):
         point = {
+            "user_id": user_id,
             "strava_id": activity_id,
             "stream_index": i,
             "latitude": latlng[0] if latlng else None,
@@ -352,6 +353,18 @@ def sync_streams(access_token, days=None):
 
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+    # Récupérer le user_id depuis user_strava_tokens
+    athlete_info = requests.get(
+        "https://www.strava.com/api/v3/athlete",
+        headers={"Authorization": f"Bearer {access_token}"}
+    ).json()
+    athlete_id = athlete_info.get("id")
+    result = supabase.table("user_strava_tokens").select("user_id").eq("strava_athlete_id", athlete_id).single().execute()
+    user_id = result.data["user_id"] if result.data else None
+    if not user_id:
+        print(f"   ❌ user_id introuvable pour athlete_id={athlete_id}")
+        return
+
     print(f"\nRécupération et envoi des traces GPS pour {len(activities)} activités...\n")
 
     total_points = 0
@@ -369,7 +382,7 @@ def sync_streams(access_token, days=None):
             print(f"   → Pas de trace GPS disponible")
             total_without_streams += 1
         else:
-            streams_points = format_streams(activity_id, streams_data)
+            streams_points = format_streams(activity_id, streams_data, user_id=user_id)
             if not streams_points:
                 print(f"   → Pas de données GPS")
                 total_without_streams += 1
@@ -381,7 +394,7 @@ def sync_streams(access_token, days=None):
                     batch = streams_points[i:i + batch_size]
                     try:
                         supabase.table("strava_activity_streams").upsert(
-                            batch, on_conflict="strava_id,stream_index"
+                            batch, on_conflict="user_id,strava_id,stream_index"
                         ).execute()
                         success += len(batch)
                     except Exception as e:

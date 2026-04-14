@@ -1456,14 +1456,32 @@
         }
 
         // === NAVIGATION MOIS ===
+        let loadedYear = null;
+
+        async function reloadActivitiesIfNeeded() {
+            const year = currentMonth.getFullYear();
+            if (year === loadedYear) return;
+            loadedYear = year;
+            const { data, error } = await window.supabaseClient
+                .from('strava_activities')
+                .select('*')
+                .gte('start_date_local', `${year}-01-01`)
+                .lte('start_date_local', `${year}-12-31`)
+                .order('start_date_local', { ascending: false });
+            if (!error) {
+                activities = data;
+                console.log(`✓ ${activities.length} activités chargées pour ${year}`);
+            }
+        }
+
         function previousMonth() {
             currentMonth.setMonth(currentMonth.getMonth() - 1);
-            loadMonthView();
+            reloadActivitiesIfNeeded().then(() => loadMonthView());
         }
 
         function nextMonth() {
             currentMonth.setMonth(currentMonth.getMonth() + 1);
-            loadMonthView();
+            reloadActivitiesIfNeeded().then(() => loadMonthView());
         }
 
         function previousWeek() {
@@ -3989,11 +4007,13 @@
                 await Promise.all([loadAnnotations(), loadTrainings(), loadTrainingWeeks()]);
 
                 console.log('3. Chargement des activités...');
+                const initYear = currentMonth.getFullYear();
+                loadedYear = initYear;
                 const { data: activitiesData, error: activitiesError } = await window.supabaseClient
                     .from('strava_activities')
                     .select('*')
-                    .gte('start_date_local', '2026-01-01')
-                    .lte('start_date_local', '2026-12-31')
+                    .gte('start_date_local', `${initYear}-01-01`)
+                    .lte('start_date_local', `${initYear}-12-31`)
                     .order('start_date_local', { ascending: false });
                 if (activitiesError) throw activitiesError;
                 activities = activitiesData;
