@@ -6,7 +6,7 @@ const SUPABASE_CONFIG = {
 };
 
 const STRAVA_CLIENT_ID = '127701';
-const STRAVA_CLIENT_SECRET = 'ec687bc2b341b7f3c481c9a31a31851d11fbe088';
+const STRAVA_CLIENT_SECRET = '9f1162a228490cceb05e4677a9562bcfad296d59';
 
 let supabaseClient = null;
 
