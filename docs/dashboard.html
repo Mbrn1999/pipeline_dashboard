@@ -4091,8 +4091,10 @@
 
             } catch (error) {
                 console.error('Erreur sync:', error);
-                if (error.message.includes('non connecte')) {
-                    connectStrava();
+                if (error.message.includes('non connecte') || error.message.includes('expiré') || error.message.includes('révoqué')) {
+                    if (confirm(error.message + '\n\nReconnecter Strava maintenant ?')) {
+                        connectStrava();
+                    }
                     return;
                 }
                 alert('Erreur sync: ' + error.message);

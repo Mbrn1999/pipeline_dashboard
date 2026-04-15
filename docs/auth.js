@@ -67,7 +67,17 @@ async function getStravaAccessToken() {
         })
     });
     const data = await res.json();
-    if (!data.access_token) throw new Error('Impossible de rafraichir le token Strava');
+    if (!data.access_token) {
+        console.error('Strava refresh token invalide, réponse:', data);
+        // Supprimer les tokens invalides pour forcer une reconnexion propre
+        await supabaseClient
+            .from('user_strava_tokens')
+            .delete()
+            .eq('user_id', window.currentUserId);
+        window.stravaConnected = false;
+        const detail = data.message || data.error_description || JSON.stringify(data);
+        throw new Error(`Token Strava expiré ou révoqué (${detail}). Veuillez reconnecter votre compte Strava.`);
+    }
 
     // Sauvegarder les nouveaux tokens
     await supabaseClient
