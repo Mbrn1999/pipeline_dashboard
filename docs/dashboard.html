@@ -244,7 +244,12 @@
         .calendar-day.today {
             border-color: #ff9800;
             border-width: 3px;
-            background: #fff3e0;
+            background: #fff8f0;
+            box-shadow: inset 0 0 0 1px #ffd08080;
+        }
+
+        .calendar-day.today .day-number {
+            color: #e65100;
         }
 
         .day-number {
@@ -252,6 +257,19 @@
             font-weight: bold;
             color: #333;
             margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .week-km-badge {
+            font-size: 9px;
+            font-weight: 600;
+            color: #888;
+            background: #f0f0f0;
+            padding: 1px 5px;
+            border-radius: 8px;
+            letter-spacing: 0.01em;
         }
 
         .day-activities {
@@ -281,24 +299,30 @@
         .day-act-desktop { display: inline; }
 
         .day-activity.run {
-            background: #FBE9E7;
-            color: #D84315;
-        }
-
-        .day-activity.ride {
-            background: #FBE9E7;
-            color: #D84315;
-        }
-
-        .day-activity.ski {
             background: #E3F2FD;
             color: #1565C0;
         }
 
+        .day-activity.ride {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        .day-activity.ski {
+            background: #F3E5F5;
+            color: #6A1B9A;
+        }
+
         .day-activity.planned {
-            background: #fff8e1;
-            color: #e65100;
-            border-left: 2px solid #ffa726;
+            background: #FFF8E1;
+            color: #E65100;
+            border-left: 2px solid #FFA726;
+        }
+
+        .day-activity.done {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border-left: 2px solid #66BB6A;
         }
 
         .day-annotations {
@@ -1564,11 +1588,26 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
+            // Pré-calculer km CAP par jour pour le badge total hebdo
+            const capKmParJour = [];
+            for (let i = 0; i < totalDays; i++) {
+                const d = new Date(startDay);
+                d.setDate(d.getDate() + i);
+                const acts = getActivitiesForDate(d);
+                capKmParJour.push(acts
+                    .filter(a => a.sport_type !== 'Ride' && a.sport_type !== 'VirtualRide' && a.sport_type !== 'NordicSki' && a.sport_type !== 'AlpineSki' && a.sport_type !== 'BackcountrySki')
+                    .reduce((s, a) => s + (a.distance || 0) / 1000, 0));
+            }
+
             for (let i = 0; i < totalDays; i++) {
                 const currentDate = new Date(startDay);
                 currentDate.setDate(currentDate.getDate() + i);
-                
-                const dayElement = createDayElement(currentDate, currentMonth, today);
+
+                const weekTotal = i % 7 === 0
+                    ? capKmParJour.slice(i, i + 7).reduce((s, k) => s + k, 0)
+                    : null;
+
+                const dayElement = createDayElement(currentDate, currentMonth, today, weekTotal);
                 calendar.appendChild(dayElement);
             }
 
@@ -1753,31 +1792,35 @@
             });
         }
 
-        function createDayElement(date, monthDate, today) {
+        function createDayElement(date, monthDate, today, weekTotal = null) {
             const div = document.createElement('div');
             div.className = 'calendar-day';
 
-            // Vérifier si le jour appartient au mois courant
             const isCurrentMonth = date.getMonth() === monthDate.getMonth();
-            if (!isCurrentMonth) {
-                div.classList.add('other-month');
-            }
+            if (!isCurrentMonth) div.classList.add('other-month');
 
-            // Vérifier si c'est aujourd'hui
-            if (date.getTime() === today.getTime()) {
-                div.classList.add('today');
-            }
+            const isToday = date.getTime() === today.getTime();
+            if (isToday) div.classList.add('today');
 
-            // Type de semaine (code couleur)
             const weekType = getWeekType(getWeekStart(date));
-            if (weekType) {
-                div.classList.add('week-' + weekType);
-            }
+            if (weekType) div.classList.add('week-' + weekType);
 
-            // Numéro du jour
+
+            // Numéro du jour + badge total hebdo sur les lundis
             const dayNumber = document.createElement('div');
             dayNumber.className = 'day-number';
-            dayNumber.textContent = date.getDate();
+
+            const dayNum = document.createElement('span');
+            dayNum.textContent = date.getDate();
+            dayNumber.appendChild(dayNum);
+
+            if (weekTotal !== null && weekTotal > 0.5) {
+                const badge = document.createElement('span');
+                badge.className = 'week-km-badge';
+                badge.textContent = `${weekTotal.toFixed(0)}km`;
+                dayNumber.appendChild(badge);
+            }
+
             div.appendChild(dayNumber);
 
             // Activités du jour
@@ -1807,25 +1850,27 @@
                 activitiesDiv.appendChild(activityEl);
             });
 
-            // Entraînements planifiés (toujours affichés, même s'il y a une activité)
+            // Entraînements : planned (🎯) ou réalisés liés à une activité (✓)
             const dayTrainings = getTrainingsForDate(date);
             dayTrainings.forEach(training => {
                 const planEl = document.createElement('div');
+                const isDone = !!training.strava_activity_id;
                 planEl.className = 'day-activity planned';
-                const sIcon = sportIcon(training.sport_type);
-                let label = sIcon;
-                if (training.title) label += ` ${training.title.substring(0, 15)}`;
-                if (training.planned_distance) label += ` ${training.planned_distance}km`;
-                if (training.planned_time) {
-                    const h = Math.floor(training.planned_time / 60);
-                    const m = training.planned_time % 60;
-                    label += ` ${h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + 'min'}`;
+
+                let label = isDone ? '✓' : '🎯';
+                if (training.title) label += ` ${training.title.substring(0, 18)}`;
+                else {
+                    if (training.planned_distance) label += ` ${training.planned_distance}km`;
+                    if (training.planned_time) {
+                        const h = Math.floor(training.planned_time / 60);
+                        const m = training.planned_time % 60;
+                        label += ` ${h > 0 ? h + 'h' + String(m).padStart(2, '0') : m + 'min'}`;
+                    }
                 }
                 planEl.textContent = label;
                 planEl.onclick = (e) => {
                     e.stopPropagation();
-                    const weekStart = getWeekStart(date);
-                    showWeekView(weekStart);
+                    showWeekView(getWeekStart(date));
                 };
                 activitiesDiv.appendChild(planEl);
             });
@@ -3896,6 +3941,61 @@
             }
         }
 
+        // Supprime les programmations (trainings sans strava_activity_id) sur les jours
+        // où une activité Strava existe :
+        //   - séance vide  → suppression totale
+        //   - séance remplie → on garde l'entrée telle quelle
+        async function nettoyerProgrammationsAvecActivite() {
+            // Pour chaque programmation (sans strava_activity_id) sur un jour avec activité :
+            //   - séance vide  → suppression
+            //   - séance remplie → transfert sur la ligne activité (upsert lié à strava_activity_id) + suppression
+            const activiteParDate = new Map();
+            activities.forEach(a => {
+                if (!a.start_date_local) return;
+                const d = a.start_date_local.substring(0, 10);
+                if (!activiteParDate.has(d)) activiteParDate.set(d, a);
+            });
+
+            const programmations = trainings.filter(t => !t.strava_activity_id && activiteParDate.has(t.date));
+            if (programmations.length === 0) return;
+
+            const idsSupprimes = new Set();
+
+            await Promise.all(programmations.map(async t => {
+                const activite = activiteParDate.get(t.date);
+                const seance = t.title?.trim();
+
+                if (seance) {
+                    // Transférer la séance sur l'activité Strava
+                    const dejaLiee = trainings.find(x => x.strava_activity_id === activite.strava_id && x.date === t.date);
+                    if (!dejaLiee) {
+                        const { error } = await window.supabaseClient.from('trainings').insert({
+                            user_id: window.currentUserId,
+                            date: t.date,
+                            title: seance,
+                            strava_activity_id: activite.strava_id,
+                            sport_type: t.sport_type || null,
+                            planned_distance: t.planned_distance || null,
+                            planned_time: t.planned_time || null
+                        });
+                        if (error) { console.error('Erreur transfert séance', error); return; }
+                        console.log(`✓ Séance "${seance}" transférée sur activité ${activite.strava_id}`);
+                    }
+                }
+
+                // Supprimer la programmation dans tous les cas
+                const { error } = await window.supabaseClient.from('trainings').delete().eq('id', t.id);
+                if (!error) idsSupprimes.add(t.id);
+                else console.error('Erreur suppression programmation', t.id, error);
+            }));
+
+            // Recharger les trainings depuis Supabase pour avoir l'état à jour
+            if (idsSupprimes.size > 0) {
+                console.log(`✓ ${idsSupprimes.size} programmation(s) traitée(s)`);
+                await loadTrainings();
+            }
+        }
+
         async function loadTrainingWeeks() {
             try {
                 const { data, error } = await window.supabaseClient
@@ -4019,7 +4119,10 @@
                 activities = activitiesData;
                 console.log(`✓ ${activities.length} activités chargées`);
 
-                console.log('4. Affichage de la vue mois...');
+                console.log('4. Nettoyage des programmations sur jours avec activité...');
+                await nettoyerProgrammationsAvecActivite();
+
+                console.log('5. Affichage de la vue mois...');
                 showMonthView();
                 
                 console.log('=== APPLICATION INITIALISÉE ===');

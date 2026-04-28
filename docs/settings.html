@@ -269,6 +269,13 @@
 
                 showMsg('syncMsg', `${synced}/${activities.length} activites synchronisees !`, false);
             } catch (err) {
+                if (err.message.includes('expiré') || err.message.includes('révoqué') || err.message.includes('non connecte')) {
+                    // Token invalide → reconnecter automatiquement
+                    showMsg('syncMsg', 'Token expiré. Reconnexion Strava...', true);
+                    await checkStravaStatus();
+                    setTimeout(() => connectStrava(), 1500);
+                    return;
+                }
                 showMsg('syncMsg', err.message, true);
             } finally {
                 btn.disabled = false;
